@@ -9,7 +9,7 @@ All functions belonging to the simulation- and BioCCP-based approaches can be fo
 Function name    | Short description
 ---------------- | -----------------
 `gRNA_frequency_distribution`        | description  
-`gRNA_activity_distribution`      | description 
+`gRNA_edit_distribution`      | description 
 `simulate_Nₓ₁`         | description
 `BioCCP_Nₓ₁` | description
 `simulate_Nₓ₂`      | description
