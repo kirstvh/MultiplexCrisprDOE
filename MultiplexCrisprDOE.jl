@@ -24,7 +24,7 @@ end
 
 Generates bimodal distribution of genome editing efficiencies for the gRNAs.
 """
-function gRNA_activity_distribution(p_high_activity, μ_high_activity, μ_low_activity, σ_activity, n_gRNAs; visualize=false)   
+function gRNA_edit_distribution(p_high_activity, μ_high_activity, μ_low_activity, σ_activity, n_gRNAs; visualize=false)   
     d_activity = Binomial(1, p_high_activity)
     d_highactivity = truncated(Normal(μ_high_activity, σ_activity), 0.01, 1)
     d_lowactivity = truncated(Normal(μ_low_activity, σ_activity), 0.01, 1)

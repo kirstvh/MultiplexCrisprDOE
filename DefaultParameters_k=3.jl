@@ -1,20 +1,21 @@
-n_gRNA_perconstruct = 3
+r = 3 # number of gRNAs per combinatorial gRNA/Cas construct
 
-n_targets = 20
-n_gRNA_pergene = 6
-n_gRNA_total = n_targets * n_gRNA_pergene
-ϵ_knockout_global = 0.8
+x = 20 # number of target genes
+g = 6 # number of gRNAs per target gene
+n_gRNA_total = x * g  # total number of gRNAs in the experiment
+ϵ_KO = 0.8  # global knockout efficiency; fraction of mutations leading to effective gene knockout
 
 Random.seed!(1)
-ρ = 2; l = 50; u = ρ*l
+ρ = 2; # ratio of the frequency of the most abundant gRNA and the frequency of the least abundant gRNA
+l = 50; u = ρ*l
 m = (l+u)/2; 
 sd = (u-l)/2; 
-p_gRNA_library = gRNA_frequency_distribution(m, sd, l, u, n_gRNA_total; normalize=true)
+p_gRNA_freq = gRNA_frequency_distribution(m, sd, l, u, n_gRNA_total; normalize=true)  # generate gRNA frequency distribution in construct library
 
 
 Random.seed!(1)
-p_active = 0.9; 
-high_activity = 0.9; 
-low_activity = 0.1; 
-sd_act = 0.01
-p_gRNA_act = gRNA_activity_distribution(p_active, high_activity, low_activity, sd_act, n_gRNA_total; visualize=false);
+f_act = 0.9  # fraction of all gRNAs that is active
+ϵ_edit_act = 0.9;  # average genome editing efficiency of active gRNAs
+ϵ_edit_inact = 0.1; # average genome editing efficiency of inactive gRNAs
+sd_act = 0.01  # standard deviation 
+p_gRNA_edit = gRNA_edit_distribution(f_act, ϵ_edit_act, ϵ_edit_inact, sd_act, n_gRNA_total; visualize=false); # generate genome editing distribution of the gRNAs
