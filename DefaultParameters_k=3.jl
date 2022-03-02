@@ -1,3 +1,4 @@
+k = 3 # order of genetic interaction to investigate
 r = 3 # number of gRNAs per combinatorial gRNA/Cas construct
 
 x = 20 # number of target genes
