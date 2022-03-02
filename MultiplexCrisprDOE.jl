@@ -158,9 +158,6 @@ function simulate_Nₓ₂(n_targets,
     
     T_vec = [] #stores number of plants required for each experiment
         for i in 1:iter     
-            if i % 100 == 0
-                println("Iteration: $i ... Calculating minimum number of plants ... \n")
-            end   
             X_interactions_count = zeros(n_targets, n_targets) # Initialize matrix to count pairwise interactions
             T = 0
             while X_interactions_count != ones(n_targets, n_targets) # check if all pairwise combinations are present
@@ -316,10 +313,7 @@ function simulate_Nₓ₃(n_targets,
 #     @assert sum(p_gRNA_library) == 1
     
     T_vec = [] #stores number of plants required for each experiment
-        for i in 1:iter     
-            if i % 100 == 0
-                println("Iteration: $i ... Calculating minimum number of plants ... \n")
-            end   
+        for i in 1:iter       
             X_interactions_count = zeros(n_targets, n_targets, n_targets) # Initialize matrix to count triple interactions
             T = 0
             while X_interactions_count != ones(n_targets, n_targets, n_targets) # check if all triple combinations are present
