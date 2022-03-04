@@ -1,8 +1,16 @@
-
 """
     gRNA_frequency_distribution(m, sd, l, u, n_gRNA_total; normalize = true, visualize=false)
 
-Generates gRNA relative frequency distribution in combinatorial gRNA/Cas9 construct library.
+Generates frequency distribution of the gRNAs in the combinatorial gRNA/Cas9 construct library.
+
+m: the average abundance of the gRNAs (in terms of absolute or relative frequency)
+sd: the standard deviation on the gRNA abundances (in terms of absolute or relative frequency)
+l: minimal gRNA abundance (in terms of absolute or relative frequency)
+u: maximal gRNA abundance (in terms of absolute or relative frequency)
+n_gRNA_total: the total number of gRNAs in the experiment
+normalize: if set to "true", the gRNA abundances (absolute frequencies) are converted into relative frequencies
+visualize: if set to "true", a histogram of all gRNA abundances is plotted
+
 """
 function gRNA_frequency_distribution(m, sd, l, u, n_gRNA_total; normalize = true, visualize=false)
     d_gRNAlibrary = truncated(Normal(m, sd), l, u)
@@ -12,7 +20,7 @@ function gRNA_frequency_distribution(m, sd, l, u, n_gRNA_total; normalize = true
             xlabel="Number of reads per gene", 
             ylabel="absolute frequency", title="Read distribution")
     else
-        if normalize
+        if normalize # convert abundances into relative frequencies
             gRNA_abundances /= sum(gRNA_abundances)
         end
         return gRNA_abundances
@@ -22,11 +30,14 @@ end
 """
     gRNA_edit_distribution(f_act, ϵ_edit_act, ϵ_edit_inact, sd_act, n_gRNA_total; visualize=false)   
 
-Generates vector with genome editing efficiencies for the gRNAs 
+Generates vector with genome editing efficiencies for all the gRNAs in the experiment. 
 
 f_act: fraction of all gRNAs that is active
-ϵ_edit_act: Average genome editing efficiency for active gRNAs
-ϵ_edit_inact: Average genome editing efficiency for inactive gRNAs
+ϵ_edit_act: Average genome editing efficiency for active gRNAs - mean of the genome editing efficiency distribution for active gRNAs
+ϵ_edit_inact: Average genome editing efficiency for inactive gRNAs - mean of the genome editing efficiency distribution for inactive gRNAs
+sd_act: standard deviation of the genome editing efficiency distributions for active and inactive gRNAs
+n_gRNA_total: the total number of gRNAs in the experiment
+visualize: if set to "true", a histogram of all genome editing efficiency is plotted
 """
 function gRNA_edit_distribution(f_act, ϵ_edit_act, ϵ_edit_inact, sd_act, n_gRNA_total; visualize=false)   
     d_act = Binomial(1, f_act) # there is a probability f_act that a gRNA is active
