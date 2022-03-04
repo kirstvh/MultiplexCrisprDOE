@@ -1,4 +1,4 @@
-# MultiplexCrisprDOE
+# Design of Multiplex CRISPR/Cas Experiments (MultiplexCrisprDOE)
 This repository accompanies the paper "Covering the Combinatorial Design Space of Multiplex CRISPR/Cas Experiments in Plants" by Kirsten Van Huffel, Michiel Stock, Thomas Jacobs, Tom Ruttink and Bernard De Baets.
 
 It provides simulation- and BioCCP-based approaches for computing the plant library size for full combinatorial coverage of multiplex CRISPR/Cas experiments in plants.
