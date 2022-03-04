@@ -13,17 +13,17 @@ visualize: if set to "true", a histogram of all gRNA abundances is plotted
 
 """
 function gRNA_frequency_distribution(m, sd, l, u, n_gRNA_total; normalize = true, visualize=false)
-    d_gRNAlibrary = truncated(Normal(m, sd), l, u)
-    gRNA_abundances = collect(rand(d_gRNAlibrary, n_gRNA_total))
-     if visualize
-        return histogram(gRNA_abundances, label="", 
-            xlabel="Number of reads per gene", 
+    d_gRNA_freq = truncated(Normal(m, sd), l, u)  # gRNA frequency distribution
+    p_gRNA_freq = collect(rand(d_gRNA_freq, n_gRNA_total))  # sample gRNA frequencies from distribution
+    if normalize # convert into relative frequencies
+        p_gRNA_freq /= sum(p_gRNA_freq)
+    end
+    if visualize
+        return histogram(p_gRNA_freq, label="", 
+            xlabel="Number of reads per gRNA", 
             ylabel="absolute frequency", title="Read distribution")
     else
-        if normalize # convert abundances into relative frequencies
-            gRNA_abundances /= sum(gRNA_abundances)
-        end
-        return gRNA_abundances
+        return p_gRNA_freq
     end
 end
 
