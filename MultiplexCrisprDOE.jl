@@ -1,5 +1,11 @@
 """
-    gRNA_frequency_distribution(m, sd, l, u, n_gRNA_total; normalize = true, visualize=false)
+    gRNA_frequency_distribution(m, 
+                                sd, 
+                                l, 
+                                u, 
+                                n_gRNA_total; 
+                                normalize = true, 
+                                visualize = false)
 
 Generates vector with frequencies in the combinatorial gRNA/Cas9 construct library for all gRNAs
 
@@ -15,12 +21,21 @@ visualize: if set to "true", a histogram of all gRNA abundances is plotted
 ***OUTPUT***
 p_gRNA_freq: vector with frequencies for all gRNAs in the construct library
 """
-function gRNA_frequency_distribution(m, sd, l, u, n_gRNA_total; normalize = true, visualize=false)
+function gRNA_frequency_distribution(m, 
+                                    sd, 
+                                    l, 
+                                    u, 
+                                    n_gRNA_total; 
+                                    normalize = true, 
+                                    visualize = false)
+
     d_gRNA_freq = truncated(Normal(m, sd), l, u)  # gRNA frequency distribution
     p_gRNA_freq = collect(rand(d_gRNA_freq, n_gRNA_total))  # sample gRNA frequencies from distribution
+    
     if normalize # convert into relative frequencies
         p_gRNA_freq /= sum(p_gRNA_freq)
     end
+
     if visualize
         return histogram(p_gRNA_freq, label="", 
             xlabel="Number of reads per gRNA", 
@@ -36,7 +51,12 @@ function gRNA_frequency_distribution(m, sd, l, u, n_gRNA_total; normalize = true
 end
 
 """
-    gRNA_edit_distribution(f_act, ϵ_edit_act, ϵ_edit_inact, sd_act, n_gRNA_total; visualize=false)   
+    gRNA_edit_distribution(f_act, 
+                            ϵ_edit_act, 
+                            ϵ_edit_inact, 
+                            sd_act, 
+                            n_gRNA_total; 
+                            visualize = false)   
 
 Generates vector with genome editing efficiencies for all the gRNAs in the experiment. 
 
@@ -56,6 +76,7 @@ function gRNA_edit_distribution(f_act, ϵ_edit_act, ϵ_edit_inact, sd_act, n_gRN
     d_high_act = truncated(Normal(ϵ_edit_act, sd_act), 0.01, 1)  # average genome editing efficiency for active gRNAs is equal to ϵ_edit_act
     d_low_act = truncated(Normal(ϵ_edit_inact, sd_act), 0.01, 1) # average genome editing efficiency for inactive gRNAs is equal to ϵ_edit_inact
     p_gRNA_edit = zeros(n_gRNA_total) # initialize vector with genome editing efficiencies for gRNAs
+    
     for i in 1:n_gRNA_total
         if rand(d_act, 1) == [1]  # gRNA is active
             p_gRNA_edit[i] = rand(d_high_act, 1)[1]
@@ -63,6 +84,7 @@ function gRNA_edit_distribution(f_act, ϵ_edit_act, ϵ_edit_inact, sd_act, n_gRN
             p_gRNA_edit[i] = rand(d_low_act, 1)[1]
         end
     end
+
     if visualize
         return histogram(p_gRNA_edit, 
                 normalize = :probability,
@@ -108,11 +130,13 @@ E_Nₓ₁: expected value of the plant library size for full coverage of all sin
 sd_Nₓ₁: standard deviation on the plant library size for full coverage of all single gene knockouts
 """
 function simulate_Nₓ₁(x, 
-                                         g, 
-                                         r, 
-                                         n_gRNA_total, 
-                                         p_gRNA_freq, 
-                                         p_gRNA_edit, ϵ_KO; iter=500)
+                    g, 
+                    r, 
+                    n_gRNA_total, 
+                    p_gRNA_freq, 
+                    p_gRNA_edit, 
+                    ϵ_KO; 
+                    iter = 500)
 
     @assert x * g == n_gRNA_total     
     Nₓ₁_vec = [] #stores number of plants to reach full coverage for each simulated experiment
@@ -228,7 +252,7 @@ function simulate_Nₓ₂(x,
                     p_gRNA_freq, 
                     p_gRNA_edit, 
                     ϵ_KO; 
-                    iter=500)
+                    iter = 500)
 
     @assert x * g == n_gRNA_total    
     Nₓ₂_vec = [] #stores number of plants to reach full coverage of all pairwise combinations of gene knockouts for each simulated experiment
@@ -260,6 +284,7 @@ function simulate_Nₓ₂(x,
                 X_interactions_count[j,k] = 1; X_interactions_count[k,j] = 1; X_interactions_count[j,j] = 1; X_interactions_count[k,k] = 1          
             end  
         end
+
         push!(Nₓ₂_vec, Nₓ₂)               
         end
 
@@ -381,7 +406,9 @@ function simulate_Nₓ₂_countKOs(x,
                                 iter = 100000)
      
     @assert x * g == n_gRNA_total 
-    n_KOs_vec = []      
+
+    n_KOs_vec = []  
+
     for j in 1:iter                           
         # sample combinatorial gRNA/Cas9 construct
         gRNA_indices_construct = findall((rand(Multinomial(r, p_gRNA_freq))) .!= 0)
@@ -397,6 +424,7 @@ function simulate_Nₓ₂_countKOs(x,
             
         push!(n_KOs_vec, length(unique((genes_indices_KO))))
     end  
+
     return n_KOs_vec
 end
 
@@ -437,6 +465,7 @@ function simulate_Nₓ₃(x,
                     iter = 500)
 
     @assert x * g == n_gRNA_total
+
     Nₓ₃_vec = [] # stores number of plants required for each experiment
 
     for i in 1:iter       
@@ -461,7 +490,7 @@ function simulate_Nₓ₃(x,
             # which triple combinations are present?
             interactions = collect(combinations(genes_indices_KO, 3))
                 
-            # Store represented combinations in matrix
+            # Store represented triple combinations in 3D-matrix
             for interaction in interactions
                 j = interaction[1]
                 k = interaction[2]
@@ -521,11 +550,12 @@ E_Nₓ₃: expecteded value of the plant library size for full coverage of all t
 sd_Nₓ₃: standard deviation on the plant library size for full coverage of all triple combinations of gene knockouts
 """
 function BioCCP_Nₓ₃(x, 
-                                         g, 
-                                         r, 
-                                         n_gRNA_total, 
-                                         p_gRNA_freq, 
-                                         p_gRNA_edit, ϵ_KO)
+                    g, 
+                    r, 
+                    n_gRNA_total, 
+                    p_gRNA_freq, 
+                    p_gRNA_edit, 
+                    ϵ_KO)
     
     # how many triple combinations of gRNAs
     ind_combinations_gRNA = collect(combinations(1:n_gRNA_total, 3))
@@ -652,12 +682,14 @@ p_gRNA_edit: vector with genome editing efficiencies for all gRNAs
 ***OUTPUT***
 γₓ₁: expected coverage of all single gene knockouts
 """
-function BioCCP_γₓ₁(x, N,
-                                         g, 
-                                         r, 
-                                         n_gRNA_total, 
-                                         p_gRNA_freq, 
-                                         p_gRNA_edit, ϵ_KO)
+function BioCCP_γₓ₁(x, 
+                    N,
+                    g, 
+                    r, 
+                    n_gRNA_total, 
+                    p_gRNA_freq, 
+                    p_gRNA_edit, 
+                    ϵ_KO)
     
     p_gRNAs = p_gRNA_freq .* p_gRNA_edit * ϵ_KO
     p_genes = [sum(p_gRNAs[i:i+g-1]) for i in 1:g:n_gRNA_total]
@@ -776,12 +808,14 @@ p_gRNA_edit: vector with genome editing efficiencies for all gRNAs
 ***OUTPUT***
 γₓ₂: expected coverage of all pairwise combinations of gene knockouts
 """
-function BioCCP_γₓ₂(x, N,
-                                         g, 
-                                         r, 
-                                         n_gRNA_total, 
-                                         p_gRNA_freq, 
-                                         p_gRNA_edit, ϵ_KO)
+function BioCCP_γₓ₂(x, 
+                    N,
+                    g, 
+                    r, 
+                    n_gRNA_total, 
+                    p_gRNA_freq, 
+                    p_gRNA_edit, 
+                    ϵ_KO)
     
     # how many pairwise combinations of gRNAs
     ind_combinations_gRNA = collect(combinations(1:n_gRNA_total, 2))
