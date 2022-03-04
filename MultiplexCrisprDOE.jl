@@ -24,7 +24,12 @@ function gRNA_frequency_distribution(m, sd, l, u, n_gRNA_total; normalize = true
     if visualize
         return histogram(p_gRNA_freq, label="", 
             xlabel="Number of reads per gRNA", 
-            ylabel="Frequency", title="gRNA frequency distribution")
+            linecolor="white", 
+            normalize=:probability,
+            xtickfontsize=10,ytickfontsize=10,
+            color=:mediumturquoise, size=(600,350), bins = 25,
+            ylabel="Relative frequency", 
+            title="gRNA frequency distribution")
     else
         return p_gRNA_freq
     end
@@ -59,7 +64,17 @@ function gRNA_edit_distribution(f_act, ϵ_edit_act, ϵ_edit_inact, sd_act, n_gRN
         end
     end
     if visualize
-        return histogram(p_gRNA_edit, label="", xlabel="gRNA activity", ylabel="absolute frequency", title="gRNA activity distribution")
+        return histogram(p_gRNA_edit, 
+                normalize = :probability,
+                linecolor = "white",
+                label="", 
+                color=:turquoise4,
+                xtickfontsize=10,ytickfontsize=10, xlim = (0, 1),
+                xticks=(0:0.1:1),
+                bins = 150,
+                xlabel="gRNA editing efficiency", 
+                ylabel="Relative frequency", 
+                title="gRNA genome editing effiency distribution")
 
     else
         return p_gRNA_edit
