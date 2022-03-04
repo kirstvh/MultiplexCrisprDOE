@@ -21,7 +21,7 @@ function gRNA_frequency_distribution(m, sd, l, u, n_gRNA_total; normalize = true
     if visualize
         return histogram(p_gRNA_freq, label="", 
             xlabel="Number of reads per gRNA", 
-            ylabel="absolute frequency", title="Read distribution")
+            ylabel="Frequency", title="gRNA frequency distribution")
     else
         return p_gRNA_freq
     end
@@ -69,7 +69,17 @@ end
                 ϵ_KO; 
                 iter = 500)
 
-Simulation-based approach for calculating Nₓ₁ of a CRISPR/Cas experiment.
+Simulation-based approach for calculating E[Nₓ₁] and σ[Nₓ₁] of a CRISPR/Cas experiment,
+studying the minimal plant library size for full coverage of all single gene knockouts.
+
+x: number of target genes in the experiment
+g: number of gRNAs designed per target gene
+r: number of gRNA sequences per combinatorial gRNA/Cas construct
+n_gRNA_total: total number of gRNAs in the experiment
+p_gRNA_freq: vector with relative frequencies for all gRNAs in the construct library
+p_gRNA_edit: vector with genome editing efficiencies for all gRNAs 
+ϵ_KO: global knockout efficiency; fraction of mutations leading to effective gene knockout
+iter: number of CRISPR/Cas experiments that are simulated to obtain E[Nₓ₁] and σ[Nₓ₁]
 """
 function simulate_Nₓ₁(x, 
                                          g, 
@@ -77,23 +87,14 @@ function simulate_Nₓ₁(x,
                                          n_gRNA_total, 
                                          p_gRNA_freq, 
                                          p_gRNA_edit, ϵ_KO; iter=500)
-    """ 
-    INPUT
-  
-    
-    OUTPUT
-    E: expected minimum number of plants to gRNA_read_distributionsee each pairwise combination at least once
-    sd: standard deviation on the minimum number of plants
-    """
-    @assert x * g == n_gRNA_total
-    
-    T_vec = [] #stores number of plants required for each experiment
+
+    @assert x * g == n_gRNA_total     
+    Nₓ₁_vec = [] #stores number of plants to reach full coverage for each simulated experiment
         for i in 1:iter       
-            genes_vec = [] # Initialize matrix to count pairwise interactions
-            T = 0
-            while genes_vec != collect(1:x) # check if all pairwise combinations are present
-             
-                T += 1 # count how many plants must be sampled to fill pairwise interaction matrix
+            genes_vec = [] # Initialize vector to store single gene knockouts that are observed in plants
+            N = 0
+            while genes_vec != collect(1:x) # check if all possible single gene knockouts are present: if no full coverage, sample an additional plant           
+                N += 1 # count how many plants must be sampled to observe all single gene knockouts
                 
                 # sample combinatorial gRNA/Cas9 construct
                 gRNA_indices_construct = findall((rand(Multinomial(r, p_gRNA_freq))) .!= 0)
@@ -105,14 +106,15 @@ function simulate_Nₓ₁(x,
                 gRNA_indices_KO = [gRNA for gRNA in gRNA_indices_mutations if rand(Binomial(1, ϵ_KO)) == 1]
             
                 # which genes are knocked out?
-                genes_indices_KO = Int.(ceil.(gRNA_indices_KO / g))
-                 append!(genes_vec, genes_indices_KO)
+                genes_indices_KO = Int.(ceil.(gRNA_indices_KO / g)) 
+                append!(genes_vec, genes_indices_KO)
+
+                # update vector with observed gene knockouts
                 genes_vec = Int.(sort(unique(genes_vec)))
             end
-            push!(T_vec, T)   
-              
+            push!(Nₓ₁_vec, N) # add plant library size for full coverage of current experiment to vector         
         end
-        E = mean(T_vec); sd = std(T_vec)
+        E = mean(Nₓ₁_vec); sd = std(Nₓ₁_vec)
     return E, sd
 end
    
@@ -126,7 +128,16 @@ end
                 p_gRNA_edit, 
                 ϵ_KO)
 
-Employs the BioCCP.jl package to calculate the Nₓ₁ of a CRISPR/Cas experiment.
+Employs the BioCCP.jl package for calculating E[Nₓ₁] and σ[Nₓ₁] of a CRISPR/Cas experiment,
+studying the minimal plant library size for full coverage of all single gene knockouts.
+
+x: number of target genes in the experiment
+g: number of gRNAs designed per target gene
+r: number of gRNA sequences per combinatorial gRNA/Cas construct
+n_gRNA_total: total number of gRNAs in the experiment
+p_gRNA_freq: vector with relative frequencies for all gRNAs in the construct library
+p_gRNA_edit: vector with genome editing efficiencies for all gRNAs 
+ϵ_KO: global knockout efficiency; fraction of mutations leading to effective gene knockout
 """
 function BioCCP_Nₓ₁(x, 
                                          g, 
@@ -135,8 +146,9 @@ function BioCCP_Nₓ₁(x,
                                          p_gRNA_freq, 
                                          p_gRNA_edit, ϵ_KO)
     
-    p_gRNAs = p_gRNA_freq .* p_gRNA_edit * ϵ_KO
-    p_genes = [sum(p_gRNAs[i:i+g-1]) for i in 1:g:n_gRNA_total]
+    # prepare input for BioCCP functions
+    p_gRNAs = p_gRNA_freq .* p_gRNA_edit * ϵ_KO  # calculate probability for each gRNA to induce effective gene knockout
+    p_genes = [sum(p_gRNAs[i:i+g-1]) for i in 1:g:n_gRNA_total]  # obtain probability of single gene knockout by summing up probability of all corresponding gRNAs to induce effective gene knockout
     return expectation_minsamplesize(x; p=p_genes, r=r, normalize=false), 
     std_minsamplesize(x; p=p_genes, r=r, normalize=false)
 end
@@ -171,7 +183,7 @@ function simulate_Nₓ₂(x,
     @assert x * g == n_gRNA_total
 #     @assert sum(p_gRNA_freq) == 1
     
-    T_vec = [] #stores number of plants required for each experiment
+    T_vec = [] #stores number of plants to reach full coverage of all pairwise combinations of gene knockouts for each simulated experiment
         for i in 1:iter     
             X_interactions_count = zeros(x, x) # Initialize matrix to count pairwise interactions
             T = 0
