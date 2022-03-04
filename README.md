@@ -10,19 +10,19 @@ Function name    | Short description
 ---------------- | -----------------
 `gRNA_frequency_distribution`        | Generates vector with frequencies in the combinatorial gRNA/Cas9 construct library for all gRNAs 
 `gRNA_edit_distribution`      | Generates vector with genome editing efficiencies for all the gRNAs in the experiment 
-`simulate_Nₓ₁`         | Computes E[N<sub>x,1</sub>] and σ[N<sub>x,1</sub>] of a CRISPR/Cas experiment, studying the minimal plant library size for full coverage of all single gene knockouts, using the simulation-based approach
-`BioCCP_Nₓ₁` | Computes E[N<sub>x,1</sub>] and σ[N<sub>x,1</sub>] of a CRISPR/Cas experiment, studying the minimal plant library size for full coverage of all single gene knockouts, using the BioCCP-based approach
+`simulate_Nₓ₁`         | Computes the expected value and the standard deviation of the minimal plant library size for full coverage of all single gene knockouts (E[N<sub>x,1</sub>] and σ[N<sub>x,1</sub>]) using simulation 
+`BioCCP_Nₓ₁` | Computes the expected value and the standard deviation of the minimal plant library size for full coverage of all single gene knockouts (E[N<sub>x,1</sub>] and σ[N<sub>x,1</sub>]) using BioCCP 
 `BioCCP_Pₓ₁` | Computes the probability of full coverage of all single gene knockouts (P<sub>x,1</sub>) for an experiment with given plant library size using BioCCP 
-`BioCCP_γₓ₁` |  jj
-`simulate_Nₓ₂`      | Computes  E[N<sub>x,2</sub>] and σ[N<sub>x,2</sub>] of multiplex CRISPR/Cas experiment, studying the minimal plant library size for full coverage of all pairwise combinations of gene knockouts, using the simulation-based approach
-`BioCCP_Nₓ₂`         | Computes  E[N<sub>x,2</sub>] and σ[N<sub>x,2</sub>] of a multiplex CRISPR/Cas experiment, studying the minimal plant library size for full coverage of all pairwise combinations of gene knockouts, using the BioCCP-based approach
+`BioCCP_γₓ₁` | Computes the expected coverage of all single gene knockouts (γ<sub>x,1</sub>) for an experiment with given plant library size using BioCCP 
+`simulate_Nₓ₂`      | Computes the expected value and the standard deviation of the minimal plant library size for full coverage of all pairwise combinations of gene knockouts in a multiplex CRISPR/Cas experiment (E[N<sub>x,2</sub>] and σ[N<sub>x,2</sub>]) using simulation 
+`BioCCP_Nₓ₂`         | Computes the expected value and the standard deviation of the minimal plant library size for full coverage of all pairwise combinations of gene knockouts in a multiplex CRISPR/Cas experiment (E[N<sub>x,2</sub>] and σ[N<sub>x,2</sub>]) using BioCCP 
 `simulate_Nₓ₂_countKOs` | Counts of the number of knockouts per plant in the experiment 
 `BioCCP_Pₓ₂` | Computes the probability of full coverage of all pairwise combinations of gene knockouts (P<sub>x,2</sub>) for an experiment with given plant library size using BioCCP 
-`BioCCP_γₓ₂` |  jj
-`simulate_Nₓ₃` | Computes  E[N<sub>x,3</sub>] and σ[N<sub>x,3</sub>] of a multiplex CRISPR/Cas experiment, studying the minimal plant library size for full coverage of all pairwise combinations of gene knockouts, using the simulation-based approach
-`BioCCP_Nₓ₃` | Computes  E[N<sub>x,3</sub>] and σ[N<sub>x,3</sub>] of a multiplex CRISPR/Cas experiment, studying the minimal plant library size for full coverage of all pairwise combinations of gene knockouts, using the BioCCP-based approach
+`BioCCP_γₓ₂` |  Computes the expected coverage of all pairwise combinations of gene knockouts (γ<sub>x,2</sub>) for an experiment with given plant library size using BioCCP 
+`simulate_Nₓ₃` | Computes the expected value and the standard deviation of the minimal plant library size for full coverage of all triple combinations of gene knockouts in a multiplex CRISPR/Cas experiment (E[N<sub>x,3</sub>] and σ[N<sub>x,3</sub>]) using simulation 
+`BioCCP_Nₓ₃` | Computes the expected value and the standard deviation of the minimal plant library size for full coverage of all triple combinations of gene knockouts in a multiplex CRISPR/Cas experiment (E[N<sub>x,3</sub>] and σ[N<sub>x,3</sub>]) using BioCCP 
 `BioCCP_Pₓ₃` | Computes the probability of full coverage of all triple combinations of gene knockouts (P<sub>x,3</sub>) for an experiment with given plant library size using BioCCP 
-`BioCCP_γₓ₃` |  jj
+`BioCCP_γₓ₃` | Computes the expected coverage of all triple combinations of gene knockouts (γ<sub>x,3</sub>) for an experiment with given plant library size using BioCCP 
 
 The default values for the experimental design parameters used in this work can be found under `DefaultParameters_k=1.jl`, `DefaultParameters_k=2.jl` and `DefaultParameters_k=3.jl`.
 
