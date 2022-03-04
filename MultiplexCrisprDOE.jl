@@ -1,12 +1,12 @@
 
 """
-    gRNA_library_distribution(m, sd, l, u, gRNA_total; normalize = true, visualize=false)
+    gRNA_frequency_distribution(m, sd, l, u, n_gRNA_total; normalize = true, visualize=false)
 
 Generates gRNA relative frequency distribution in combinatorial gRNA/Cas9 construct library.
 """
-function gRNA_frequency_distribution(m, sd, l, u, gRNA_total; normalize = true, visualize=false)
+function gRNA_frequency_distribution(m, sd, l, u, n_gRNA_total; normalize = true, visualize=false)
     d_gRNAlibrary = truncated(Normal(m, sd), l, u)
-    gRNA_abundances = collect(rand(d_gRNAlibrary, gRNA_total))
+    gRNA_abundances = collect(rand(d_gRNAlibrary, n_gRNA_total))
      if visualize
         return histogram(gRNA_abundances, label="", 
             xlabel="Number of reads per gene", 
@@ -20,48 +20,52 @@ function gRNA_frequency_distribution(m, sd, l, u, gRNA_total; normalize = true, 
 end
 
 """
-    gRNA_activity_distribution(p_high_activity, μ_high_activity, μ_low_activity, σ_activity, n_gRNAs; visualize=false)   
+    gRNA_edit_distribution(f_act, ϵ_edit_act, ϵ_edit_inact, sd_act, n_gRNA_total; visualize=false)   
 
-Generates bimodal distribution of genome editing efficiencies for the gRNAs.
+Generates vector with genome editing efficiencies for the gRNAs 
+
+f_act: fraction of all gRNAs that is active
+ϵ_edit_act: Average genome editing efficiency for active gRNAs
+ϵ_edit_inact: Average genome editing efficiency for inactive gRNAs
 """
-function gRNA_edit_distribution(p_high_activity, μ_high_activity, μ_low_activity, σ_activity, n_gRNAs; visualize=false)   
-    d_activity = Binomial(1, p_high_activity)
-    d_highactivity = truncated(Normal(μ_high_activity, σ_activity), 0.01, 1)
-    d_lowactivity = truncated(Normal(μ_low_activity, σ_activity), 0.01, 1)
-    p_gRNA_act = zeros(n_gRNAs) # initialize
-    for i in 1:n_gRNAs
-        if rand(d_activity, 1) == [1]
-            p_gRNA_act[i] = rand(d_highactivity, 1)[1]
-        else
-            p_gRNA_act[i] = rand(d_lowactivity, 1)[1]
+function gRNA_edit_distribution(f_act, ϵ_edit_act, ϵ_edit_inact, sd_act, n_gRNA_total; visualize=false)   
+    d_act = Binomial(1, f_act) # there is a probability f_act that a gRNA is active
+    d_high_act = truncated(Normal(ϵ_edit_act, sd_act), 0.01, 1)  # average genome editing efficiency for active gRNAs is equal to ϵ_edit_act
+    d_low_act = truncated(Normal(ϵ_edit_inact, sd_act), 0.01, 1) # average genome editing efficiency for inactive gRNAs is equal to ϵ_edit_inact
+    p_gRNA_edit = zeros(n_gRNA_total) # initialize vector with genome editing efficiencies for gRNAs
+    for i in 1:n_gRNA_total
+        if rand(d_act, 1) == [1]  # gRNA is active
+            p_gRNA_edit[i] = rand(d_high_act, 1)[1]
+        else  # gRNA is inactive
+            p_gRNA_edit[i] = rand(d_low_act, 1)[1]
         end
     end
     if visualize
-        return histogram(p_gRNA_act, label="", xlabel="gRNA activity", ylabel="absolute frequency", title="gRNA activity distribution")
+        return histogram(p_gRNA_edit, label="", xlabel="gRNA activity", ylabel="absolute frequency", title="gRNA activity distribution")
 
     else
-        return p_gRNA_act
+        return p_gRNA_edit
     end
 end
 
 """
-    simulate_Nₓ₁(n_targets, 
-                n_gRNA_pergene, 
-                n_gRNA_perconstruct, 
+    simulate_Nₓ₁(x, 
+                g, 
+                r, 
                 n_gRNA_total, 
-                p_gRNA_library, 
-                p_gRNA_act, 
-                ϵ_knockout_global; 
+                p_gRNA_freq, 
+                p_gRNA_edit, 
+                ϵ_KO; 
                 iter = 500)
 
 Simulation-based approach for calculating Nₓ₁ of a CRISPR/Cas experiment.
 """
-function simulate_Nₓ₁(n_targets, 
-                                         n_gRNA_pergene, 
-                                         n_gRNA_perconstruct, 
+function simulate_Nₓ₁(x, 
+                                         g, 
+                                         r, 
                                          n_gRNA_total, 
-                                         p_gRNA_library, 
-                                         p_gRNA_act, ϵ_knockout_global; iter=500)
+                                         p_gRNA_freq, 
+                                         p_gRNA_edit, ϵ_KO; iter=500)
     """ 
     INPUT
   
@@ -70,27 +74,27 @@ function simulate_Nₓ₁(n_targets,
     E: expected minimum number of plants to gRNA_read_distributionsee each pairwise combination at least once
     sd: standard deviation on the minimum number of plants
     """
-    @assert n_targets * n_gRNA_pergene == n_gRNA_total
+    @assert x * g == n_gRNA_total
     
     T_vec = [] #stores number of plants required for each experiment
         for i in 1:iter       
             genes_vec = [] # Initialize matrix to count pairwise interactions
             T = 0
-            while genes_vec != collect(1:n_targets) # check if all pairwise combinations are present
+            while genes_vec != collect(1:x) # check if all pairwise combinations are present
              
                 T += 1 # count how many plants must be sampled to fill pairwise interaction matrix
                 
                 # sample combinatorial gRNA/Cas9 construct
-                gRNA_indices_construct = findall((rand(Multinomial(n_gRNA_perconstruct, p_gRNA_library))) .!= 0)
+                gRNA_indices_construct = findall((rand(Multinomial(r, p_gRNA_freq))) .!= 0)
                 
                 # execute mutations
-                gRNA_indices_mutations = [gRNA for gRNA in gRNA_indices_construct if rand(Binomial(1, p_gRNA_act[gRNA])) == 1]
+                gRNA_indices_mutations = [gRNA for gRNA in gRNA_indices_construct if rand(Binomial(1, p_gRNA_edit[gRNA])) == 1]
             
                 # effective gene knockout (loss-of-function) ?
-                gRNA_indices_KO = [gRNA for gRNA in gRNA_indices_mutations if rand(Binomial(1, ϵ_knockout_global)) == 1]
+                gRNA_indices_KO = [gRNA for gRNA in gRNA_indices_mutations if rand(Binomial(1, ϵ_KO)) == 1]
             
                 # which genes are knocked out?
-                genes_indices_KO = Int.(ceil.(gRNA_indices_KO / n_gRNA_pergene))
+                genes_indices_KO = Int.(ceil.(gRNA_indices_KO / g))
                  append!(genes_vec, genes_indices_KO)
                 genes_vec = Int.(sort(unique(genes_vec)))
             end
@@ -103,48 +107,48 @@ end
    
 
 """
-    BioCCP_Nₓ₁(n_targets, 
-                n_gRNA_pergene, 
-                n_gRNA_perconstruct, 
+    BioCCP_Nₓ₁(x, 
+                g, 
+                r, 
                 n_gRNA_total, 
-                p_gRNA_library, 
-                p_gRNA_act, 
-                ϵ_knockout_global)
+                p_gRNA_freq, 
+                p_gRNA_edit, 
+                ϵ_KO)
 
 Employs the BioCCP.jl package to calculate the Nₓ₁ of a CRISPR/Cas experiment.
 """
-function BioCCP_Nₓ₁(n_targets, 
-                                         n_gRNA_pergene, 
-                                         n_gRNA_perconstruct, 
+function BioCCP_Nₓ₁(x, 
+                                         g, 
+                                         r, 
                                          n_gRNA_total, 
-                                         p_gRNA_library, 
-                                         p_gRNA_act, ϵ_knockout_global)
+                                         p_gRNA_freq, 
+                                         p_gRNA_edit, ϵ_KO)
     
-    p_gRNAs = p_gRNA_library .* p_gRNA_act * ϵ_knockout_global
-    p_genes = [sum(p_gRNAs[i:i+n_gRNA_pergene-1]) for i in 1:n_gRNA_pergene:n_gRNA_total]
-    return expectation_minsamplesize(n_targets; p=p_genes, r=n_gRNA_perconstruct, normalize=false), 
-    std_minsamplesize(n_targets; p=p_genes, r=n_gRNA_perconstruct, normalize=false)
+    p_gRNAs = p_gRNA_freq .* p_gRNA_edit * ϵ_KO
+    p_genes = [sum(p_gRNAs[i:i+g-1]) for i in 1:g:n_gRNA_total]
+    return expectation_minsamplesize(x; p=p_genes, r=r, normalize=false), 
+    std_minsamplesize(x; p=p_genes, r=r, normalize=false)
 end
 
 
 """
-    simulate_Nₓ₂(n_targets, 
-                    n_gRNA_pergene, 
-                    n_gRNA_perconstruct, 
+    simulate_Nₓ₂(x, 
+                    g, 
+                    r, 
                     n_gRNA_total, 
-                    p_gRNA_library, 
-                    p_gRNA_act, 
-                    ϵ_knockout_global; 
+                    p_gRNA_freq, 
+                    p_gRNA_edit, 
+                    ϵ_KO; 
                     iter=500)
 
 Simulation-based approach for calculating Nₓ₂ of multiplex CRISPR/Cas experiment.
 """
-function simulate_Nₓ₂(n_targets, 
-                                         n_gRNA_pergene, 
-                                         n_gRNA_perconstruct, 
+function simulate_Nₓ₂(x, 
+                                         g, 
+                                         r, 
                                          n_gRNA_total, 
-                                         p_gRNA_library, 
-                                         p_gRNA_act, ϵ_knockout_global; iter=500)
+                                         p_gRNA_freq, 
+                                         p_gRNA_edit, ϵ_KO; iter=500)
     """ 
     INPUT
   
@@ -153,27 +157,27 @@ function simulate_Nₓ₂(n_targets,
     E: expected minimum number of plants to gRNA_read_distributionsee each pairwise combination at least once
     sd: standard deviation on the minimum number of plants
     """
-    @assert n_targets * n_gRNA_pergene == n_gRNA_total
-#     @assert sum(p_gRNA_library) == 1
+    @assert x * g == n_gRNA_total
+#     @assert sum(p_gRNA_freq) == 1
     
     T_vec = [] #stores number of plants required for each experiment
         for i in 1:iter     
-            X_interactions_count = zeros(n_targets, n_targets) # Initialize matrix to count pairwise interactions
+            X_interactions_count = zeros(x, x) # Initialize matrix to count pairwise interactions
             T = 0
-            while X_interactions_count != ones(n_targets, n_targets) # check if all pairwise combinations are present
+            while X_interactions_count != ones(x, x) # check if all pairwise combinations are present
                 T += 1 # count how many plants must be sampled to fill pairwise interaction matrix
                 
                 # sample combinatorial gRNA/Cas9 construct
-                gRNA_indices_construct = findall((rand(Multinomial(n_gRNA_perconstruct, p_gRNA_library))) .!= 0)
+                gRNA_indices_construct = findall((rand(Multinomial(r, p_gRNA_freq))) .!= 0)
                 
                 # execute mutations
-                gRNA_indices_mutations = [gRNA for gRNA in gRNA_indices_construct if rand(Binomial(1, p_gRNA_act[gRNA])) == 1]
+                gRNA_indices_mutations = [gRNA for gRNA in gRNA_indices_construct if rand(Binomial(1, p_gRNA_edit[gRNA])) == 1]
             
                 # effective gene knockout (loss-of-function) ?
-                gRNA_indices_KO = [gRNA for gRNA in gRNA_indices_mutations if rand(Binomial(1, ϵ_knockout_global)) == 1]
+                gRNA_indices_KO = [gRNA for gRNA in gRNA_indices_mutations if rand(Binomial(1, ϵ_KO)) == 1]
             
                 # which genes are knocked out?
-                genes_indices_KO = Int.(ceil.(gRNA_indices_KO / n_gRNA_pergene))
+                genes_indices_KO = Int.(ceil.(gRNA_indices_KO / g))
             
                 # which pairwise combinations are present?
                 interactions = collect(combinations(genes_indices_KO, 2))
@@ -192,21 +196,21 @@ function simulate_Nₓ₂(n_targets,
 end
 
 """
-    BioCCP_Nₓ₂(n_targets, 
-                n_gRNA_pergene, 
-                n_gRNA_perconstruct, 
+    BioCCP_Nₓ₂(x, 
+                g, 
+                r, 
                 n_gRNA_total, 
-                p_gRNA_library, 
-                p_gRNA_act, ϵ_knockout_global)
+                p_gRNA_freq, 
+                p_gRNA_edit, ϵ_KO)
 
 Employs the BioCCP.jl package to calculate the Nₓ₂ of a multiplex CRISPR/Cas experiment.
 """
-function BioCCP_Nₓ₂(n_targets, 
-                                         n_gRNA_pergene, 
-                                         n_gRNA_perconstruct, 
+function BioCCP_Nₓ₂(x, 
+                                         g, 
+                                         r, 
                                          n_gRNA_total, 
-                                         p_gRNA_library, 
-                                         p_gRNA_act, ϵ_knockout_global)
+                                         p_gRNA_freq, 
+                                         p_gRNA_edit, ϵ_KO)
     
     # how many pairwise combinations of gRNAs
     ind_combinations_gRNA = collect(combinations(1:n_gRNA_total, 2))
@@ -216,8 +220,8 @@ function BioCCP_Nₓ₂(n_targets,
     p_combinations_gRNA_library = zeros(n_combinations_gRNA)
     p_combinations_gRNA_act = zeros(n_combinations_gRNA)
     for i in 1:n_combinations_gRNA
-        p_combinations_gRNA_library[i] = p_gRNA_library[ind_combinations_gRNA[i][1]] * p_gRNA_library[ind_combinations_gRNA[i][2]]
-        p_combinations_gRNA_act[i] = p_gRNA_act[ind_combinations_gRNA[i][1]] * p_gRNA_act[ind_combinations_gRNA[i][2]]
+        p_combinations_gRNA_library[i] = p_gRNA_freq[ind_combinations_gRNA[i][1]] * p_gRNA_freq[ind_combinations_gRNA[i][2]]
+        p_combinations_gRNA_act[i] = p_gRNA_edit[ind_combinations_gRNA[i][1]] * p_gRNA_edit[ind_combinations_gRNA[i][2]]
     end
     
     # normalize probability gRNA combinations
@@ -228,7 +232,7 @@ function BioCCP_Nₓ₂(n_targets,
     p_combinations_gRNA_act_interest = []
     ind_combinations_gRNA_interest = []
     for i in 1:n_combinations_gRNA
-        if ceil(ind_combinations_gRNA[i][1]/n_gRNA_pergene) != ceil(ind_combinations_gRNA[i][2]/n_gRNA_pergene)
+        if ceil(ind_combinations_gRNA[i][1]/g) != ceil(ind_combinations_gRNA[i][2]/g)
             push!(p_combinations_gRNA_library_interest, p_combinations_gRNA_library[i])
             push!(p_combinations_gRNA_act_interest, p_combinations_gRNA_act[i])
             push!(ind_combinations_gRNA_interest, ind_combinations_gRNA[i])
@@ -236,46 +240,46 @@ function BioCCP_Nₓ₂(n_targets,
     end
         
     n_combinations_gRNA_interest = length(p_combinations_gRNA_library_interest)
-    p_combinations_gRNA = p_combinations_gRNA_library_interest .* p_combinations_gRNA_act_interest * ϵ_knockout_global^2
+    p_combinations_gRNA = p_combinations_gRNA_library_interest .* p_combinations_gRNA_act_interest * ϵ_KO^2
 
-    #### INTEGREREN PER GENCOMBINATIE
-    p_genes_matrix = zeros(n_targets, n_targets)
+    # sum up probabilities or gRNA combinations for corresponding gene knockout combinations
+    p_genes_matrix = zeros(x, x)
     for i in 1:n_combinations_gRNA_interest
-        gene1 = Int(ceil(ind_combinations_gRNA_interest[i][1]/n_gRNA_pergene))
-        gene2 = Int(ceil(ind_combinations_gRNA_interest[i][2]/n_gRNA_pergene))
+        gene1 = Int(ceil(ind_combinations_gRNA_interest[i][1]/g))
+        gene2 = Int(ceil(ind_combinations_gRNA_interest[i][2]/g))
         p_genes_matrix[gene1, gene2] += p_combinations_gRNA[i]
     end
     p_genes = collect([p_genes_matrix[i, j] for j in 2:size(p_genes_matrix, 1) for i in 1:j-1])  
     n_combinations_genes = length(p_genes)
-    combinations_pp = length(collect(combinations(1:n_gRNA_perconstruct, 2)))
+    combinations_pp = length(collect(combinations(1:r, 2)))
     
     return expectation_minsamplesize(n_combinations_genes; p=p_genes, r=combinations_pp, normalize=false), std_minsamplesize(n_combinations_genes; p=p_genes, r=combinations_pp, normalize=false)
 end
 
-function simulate_Nₓ₂_countKOs(n_targets, 
-                                         n_gRNA_pergene, 
-                                         n_gRNA_perconstruct, 
+function simulate_Nₓ₂_countKOs(x, 
+                                         g, 
+                                         r, 
                                          n_gRNA_total, 
-                                         p_gRNA_library, 
-                                         p_gRNA_act, ϵ_knockout_global; iter=500)
+                                         p_gRNA_freq, 
+                                         p_gRNA_edit, ϵ_KO; iter=500)
      
-    @assert n_targets * n_gRNA_pergene == n_gRNA_total
+    @assert x * g == n_gRNA_total
     
             n_KOs = []
        
             for j in 1:100000
                                
                 # sample combinatorial gRNA/Cas9 construct
-                gRNA_indices_construct = findall((rand(Multinomial(n_gRNA_perconstruct, p_gRNA_library))) .!= 0)
+                gRNA_indices_construct = findall((rand(Multinomial(r, p_gRNA_freq))) .!= 0)
                 
                 # execute mutations
-                gRNA_indices_mutations = [gRNA for gRNA in gRNA_indices_construct if rand(Binomial(1, p_gRNA_act[gRNA])) == 1]
+                gRNA_indices_mutations = [gRNA for gRNA in gRNA_indices_construct if rand(Binomial(1, p_gRNA_edit[gRNA])) == 1]
             
                 # effective gene knockout (loss-of-function) ?
-                gRNA_indices_KO = [gRNA for gRNA in gRNA_indices_mutations if rand(Binomial(1, ϵ_knockout_global)) == 1]
+                gRNA_indices_KO = [gRNA for gRNA in gRNA_indices_mutations if rand(Binomial(1, ϵ_KO)) == 1]
             
                 # which genes are knocked out?
-                genes_indices_KO = Int.(ceil.(gRNA_indices_KO / n_gRNA_pergene))
+                genes_indices_KO = Int.(ceil.(gRNA_indices_KO / g))
             
                push!(n_KOs, length(unique((genes_indices_KO))))
             end  
@@ -284,23 +288,23 @@ function simulate_Nₓ₂_countKOs(n_targets,
 end
 
 """
-    simulate_Nₓ₃(n_targets, 
-                    n_gRNA_pergene, 
-                    n_gRNA_perconstruct, 
+    simulate_Nₓ₃(x, 
+                    g, 
+                    r, 
                     n_gRNA_total, 
-                    p_gRNA_library, 
-                    p_gRNA_act, 
-                    ϵ_knockout_global; 
+                    p_gRNA_freq, 
+                    p_gRNA_edit, 
+                    ϵ_KO; 
                     iter=500)
 
 Simulation-based approach for calculating Nₓ₃ of multiplex CRISPR/Cas experiment.
 """
-function simulate_Nₓ₃(n_targets, 
-                                         n_gRNA_pergene, 
-                                         n_gRNA_perconstruct, 
+function simulate_Nₓ₃(x, 
+                                         g, 
+                                         r, 
                                          n_gRNA_total, 
-                                         p_gRNA_library, 
-                                         p_gRNA_act, ϵ_knockout_global; iter=500)
+                                         p_gRNA_freq, 
+                                         p_gRNA_edit, ϵ_KO; iter=500)
     """ 
     INPUT
   
@@ -309,27 +313,27 @@ function simulate_Nₓ₃(n_targets,
     E: expected minimum number of plants to gRNA_read_distributionsee each pairwise combination at least once
     sd: standard deviation on the minimum number of plants
     """
-    @assert n_targets * n_gRNA_pergene == n_gRNA_total
-#     @assert sum(p_gRNA_library) == 1
+    @assert x * g == n_gRNA_total
+#     @assert sum(p_gRNA_freq) == 1
     
     T_vec = [] #stores number of plants required for each experiment
         for i in 1:iter       
-            X_interactions_count = zeros(n_targets, n_targets, n_targets) # Initialize matrix to count triple interactions
+            X_interactions_count = zeros(x, x, x) # Initialize matrix to count triple interactions
             T = 0
-            while X_interactions_count != ones(n_targets, n_targets, n_targets) # check if all triple combinations are present
+            while X_interactions_count != ones(x, x, x) # check if all triple combinations are present
                 T += 1 # count how many plants must be sampled to fill triple interaction matrix
                 
                 # sample combinatorial gRNA/Cas9 construct
-                gRNA_indices_construct = findall((rand(Multinomial(n_gRNA_perconstruct, p_gRNA_library))) .!= 0)
+                gRNA_indices_construct = findall((rand(Multinomial(r, p_gRNA_freq))) .!= 0)
                 
                 # execute mutations
-                gRNA_indices_mutations = [gRNA for gRNA in gRNA_indices_construct if rand(Binomial(1, p_gRNA_act[gRNA])) == 1]
+                gRNA_indices_mutations = [gRNA for gRNA in gRNA_indices_construct if rand(Binomial(1, p_gRNA_edit[gRNA])) == 1]
             
                 # effective gene knockout (loss-of-function) ?
-                gRNA_indices_KO = [gRNA for gRNA in gRNA_indices_mutations if rand(Binomial(1, ϵ_knockout_global)) == 1]
+                gRNA_indices_KO = [gRNA for gRNA in gRNA_indices_mutations if rand(Binomial(1, ϵ_KO)) == 1]
             
                 # which genes are knocked out?
-                genes_indices_KO = Int.(ceil.(gRNA_indices_KO / n_gRNA_pergene))
+                genes_indices_KO = Int.(ceil.(gRNA_indices_KO / g))
             
                 # which triple combinations are present?
                 interactions = collect(combinations(genes_indices_KO, 3))
@@ -367,22 +371,22 @@ end
    
 
 """
-    BioCCP_Nₓ₃(n_targets, 
-            n_gRNA_pergene, 
-            n_gRNA_perconstruct, 
+    BioCCP_Nₓ₃(x, 
+            g, 
+            r, 
             n_gRNA_total, 
-            p_gRNA_library, 
-            p_gRNA_act, 
-            ϵ_knockout_global)
+            p_gRNA_freq, 
+            p_gRNA_edit, 
+            ϵ_KO)
 
 Employs the BioCCP.jl package to calculate the RES3 of a multiplex CRISPR/Cas experiment.
 """
-function BioCCP_Nₓ₃(n_targets, 
-                                         n_gRNA_pergene, 
-                                         n_gRNA_perconstruct, 
+function BioCCP_Nₓ₃(x, 
+                                         g, 
+                                         r, 
                                          n_gRNA_total, 
-                                         p_gRNA_library, 
-                                         p_gRNA_act, ϵ_knockout_global)
+                                         p_gRNA_freq, 
+                                         p_gRNA_edit, ϵ_KO)
     
     # how many pairwise combinations of gRNAs
     ind_combinations_gRNA = collect(combinations(1:n_gRNA_total, 3))
@@ -392,8 +396,8 @@ function BioCCP_Nₓ₃(n_targets,
     p_combinations_gRNA_library = zeros(n_combinations_gRNA)
     p_combinations_gRNA_act = zeros(n_combinations_gRNA)
     for i in 1:n_combinations_gRNA
-        p_combinations_gRNA_library[i] = p_gRNA_library[ind_combinations_gRNA[i][1]] * p_gRNA_library[ind_combinations_gRNA[i][2]] * p_gRNA_library[ind_combinations_gRNA[i][3]]
-        p_combinations_gRNA_act[i] = p_gRNA_act[ind_combinations_gRNA[i][1]] * p_gRNA_act[ind_combinations_gRNA[i][2]] * p_gRNA_act[ind_combinations_gRNA[i][3]]
+        p_combinations_gRNA_library[i] = p_gRNA_freq[ind_combinations_gRNA[i][1]] * p_gRNA_freq[ind_combinations_gRNA[i][2]] * p_gRNA_freq[ind_combinations_gRNA[i][3]]
+        p_combinations_gRNA_act[i] = p_gRNA_edit[ind_combinations_gRNA[i][1]] * p_gRNA_edit[ind_combinations_gRNA[i][2]] * p_gRNA_edit[ind_combinations_gRNA[i][3]]
     end
     
     # normalize probability gRNA combinations
@@ -404,7 +408,7 @@ function BioCCP_Nₓ₃(n_targets,
     p_combinations_gRNA_act_interest = []
     ind_combinations_gRNA_interest = []
     for i in 1:n_combinations_gRNA
-        if ceil(ind_combinations_gRNA[i][1]/n_gRNA_pergene) != ceil(ind_combinations_gRNA[i][2]/n_gRNA_pergene) && ceil(ind_combinations_gRNA[i][1]/n_gRNA_pergene) != ceil(ind_combinations_gRNA[i][3]/n_gRNA_pergene) && ceil(ind_combinations_gRNA[i][3]/n_gRNA_pergene) != ceil(ind_combinations_gRNA[i][2]/n_gRNA_pergene)
+        if ceil(ind_combinations_gRNA[i][1]/g) != ceil(ind_combinations_gRNA[i][2]/g) && ceil(ind_combinations_gRNA[i][1]/g) != ceil(ind_combinations_gRNA[i][3]/g) && ceil(ind_combinations_gRNA[i][3]/g) != ceil(ind_combinations_gRNA[i][2]/g)
             push!(p_combinations_gRNA_library_interest, p_combinations_gRNA_library[i])
             push!(p_combinations_gRNA_act_interest, p_combinations_gRNA_act[i])
             push!(ind_combinations_gRNA_interest, ind_combinations_gRNA[i])
@@ -412,101 +416,101 @@ function BioCCP_Nₓ₃(n_targets,
     end
         
     n_combinations_gRNA_interest = length(p_combinations_gRNA_library_interest)
-    p_combinations_gRNA = p_combinations_gRNA_library_interest .* p_combinations_gRNA_act_interest * ϵ_knockout_global^3
+    p_combinations_gRNA = p_combinations_gRNA_library_interest .* p_combinations_gRNA_act_interest * ϵ_KO^3
 
-    #### INTEGREREN PER GENCOMBINATIE
-    p_genes_matrix = zeros(n_targets, n_targets, n_targets)
+    # sum up probabilities or gRNA combinations for corresponding gene knockout combinations
+    p_genes_matrix = zeros(x, x, x)
     for i in 1:n_combinations_gRNA_interest
-        gene1 = Int(ceil(ind_combinations_gRNA_interest[i][1]/n_gRNA_pergene))
-        gene2 = Int(ceil(ind_combinations_gRNA_interest[i][2]/n_gRNA_pergene))
-        gene3 = Int(ceil(ind_combinations_gRNA_interest[i][3]/n_gRNA_pergene))
+        gene1 = Int(ceil(ind_combinations_gRNA_interest[i][1]/g))
+        gene2 = Int(ceil(ind_combinations_gRNA_interest[i][2]/g))
+        gene3 = Int(ceil(ind_combinations_gRNA_interest[i][3]/g))
         p_genes_matrix[gene1, gene2, gene3] += p_combinations_gRNA[i]
     end
     
-    combinations_genes = collect(combinations(1:n_targets, 3))
+    combinations_genes = collect(combinations(1:x, 3))
     p_genes = []
         for combination in combinations_genes
             push!(p_genes, p_genes_matrix[combination[1], combination[2], combination[3]])
         end
         
     n_combinations_genes = length(p_genes)
-    combinations_pp = length(collect(combinations(1:n_gRNA_perconstruct, 3)))
+    combinations_pp = length(collect(combinations(1:r, 3)))
     
     return expectation_minsamplesize(n_combinations_genes; p=p_genes, r=combinations_pp, normalize=false), std_minsamplesize(n_combinations_genes; p=p_genes, r=combinations_pp, normalize=false)
 end
 
 """
-    BioCCP_Pₓ₁(n_targets, 
-                sample_size,
-                n_gRNA_pergene, 
-                n_gRNA_perconstruct, 
+    BioCCP_Pₓ₁(x, 
+                N,
+                g, 
+                r, 
                 n_gRNA_total, 
-                p_gRNA_library, 
-                p_gRNA_act, 
-                ϵ_knockout_global)
+                p_gRNA_freq, 
+                p_gRNA_edit, 
+                ϵ_KO)
 Employs the BioCCP.jl package to calculate the probability of full coverage of all individual gene knockouts 
 in the gene knockout library of a CRISPR/Cas experiment 
 with respect to a specified plant library size (number of plants analyzed).
 """
-function BioCCP_Pₓ₁(n_targets, sample_size,
-                                         n_gRNA_pergene, 
-                                         n_gRNA_perconstruct, 
+function BioCCP_Pₓ₁(x, N,
+                                         g, 
+                                         r, 
                                          n_gRNA_total, 
-                                         p_gRNA_library, 
-                                         p_gRNA_act, ϵ_knockout_global)
+                                         p_gRNA_freq, 
+                                         p_gRNA_edit, ϵ_KO)
     
-    p_gRNAs = p_gRNA_library .* p_gRNA_act * ϵ_knockout_global
-    p_genes = [sum(p_gRNAs[i:i+n_gRNA_pergene-1]) for i in 1:n_gRNA_pergene:n_gRNA_total]
-    return success_probability(n_targets, sample_size; p=p_genes, r=n_gRNA_perconstruct, normalize=false) 
+    p_gRNAs = p_gRNA_freq .* p_gRNA_edit * ϵ_KO
+    p_genes = [sum(p_gRNAs[i:i+g-1]) for i in 1:g:n_gRNA_total]
+    return success_probability(x, N; p=p_genes, r=r, normalize=false) 
 end
 
 """
-BioCCP_γₓ₁(n_targets, 
-            sample_size,
-            n_gRNA_pergene, 
-            n_gRNA_perconstruct, 
+BioCCP_γₓ₁(x, 
+            N,
+            g, 
+            r, 
             n_gRNA_total, 
-            p_gRNA_library, 
-            p_gRNA_act, 
-            ϵ_knockout_global)
+            p_gRNA_freq, 
+            p_gRNA_edit, 
+            ϵ_KO)
 
 Employs the BioCCP.jl package to calculate the expected represented fraction of the design space, 
 here consisting of all individual gene knockouts in a gene knockout library of a CRISPR/Cas experiment, 
 with respect to a specified experimental scale (number of plants analyzed; ES).
 """
-function BioCCP_γₓ₁(n_targets, sample_size,
-                                         n_gRNA_pergene, 
-                                         n_gRNA_perconstruct, 
+function BioCCP_γₓ₁(x, N,
+                                         g, 
+                                         r, 
                                          n_gRNA_total, 
-                                         p_gRNA_library, 
-                                         p_gRNA_act, ϵ_knockout_global)
+                                         p_gRNA_freq, 
+                                         p_gRNA_edit, ϵ_KO)
     
-    p_gRNAs = p_gRNA_library .* p_gRNA_act * ϵ_knockout_global
-    p_genes = [sum(p_gRNAs[i:i+n_gRNA_pergene-1]) for i in 1:n_gRNA_pergene:n_gRNA_total]
-    return expectation_fraction_collected(n_targets, sample_size; p=p_genes, r=n_gRNA_perconstruct, normalize=false) 
+    p_gRNAs = p_gRNA_freq .* p_gRNA_edit * ϵ_KO
+    p_genes = [sum(p_gRNAs[i:i+g-1]) for i in 1:g:n_gRNA_total]
+    return expectation_fraction_collected(x, N; p=p_genes, r=r, normalize=false) 
 end
 
 
 """
-    BioCCP_Pₓ₂(n_targets, 
-                sample_size,
-                n_gRNA_pergene, 
-                n_gRNA_perconstruct, 
+    BioCCP_Pₓ₂(x, 
+                N,
+                g, 
+                r, 
                 n_gRNA_total, 
-                p_gRNA_library, 
-                p_gRNA_act, 
-                ϵ_knockout_global)
+                p_gRNA_freq, 
+                p_gRNA_edit, 
+                ϵ_KO)
 
 Employs the BioCCP.jl package to calculate the probability of full coverage of all pairwise combinations of gene knockouts 
 in the combinatorial gene knockout library of a multiplex CRISPR/Cas experiment 
 with respect to a specified experimental scale (number of plants analyzed; ES).
 """
-function BioCCP_Pₓ₂(n_targets, sample_size,
-                                         n_gRNA_pergene, 
-                                         n_gRNA_perconstruct, 
+function BioCCP_Pₓ₂(x, N,
+                                         g, 
+                                         r, 
                                          n_gRNA_total, 
-                                         p_gRNA_library, 
-                                         p_gRNA_act, ϵ_knockout_global)
+                                         p_gRNA_freq, 
+                                         p_gRNA_edit, ϵ_KO)
     
     # how many pairwise combinations of gRNAs
     ind_combinations_gRNA = collect(combinations(1:n_gRNA_total, 2))
@@ -516,8 +520,8 @@ function BioCCP_Pₓ₂(n_targets, sample_size,
     p_combinations_gRNA_library = zeros(n_combinations_gRNA)
     p_combinations_gRNA_act = zeros(n_combinations_gRNA)
     for i in 1:n_combinations_gRNA
-        p_combinations_gRNA_library[i] = p_gRNA_library[ind_combinations_gRNA[i][1]] * p_gRNA_library[ind_combinations_gRNA[i][2]]
-        p_combinations_gRNA_act[i] = p_gRNA_act[ind_combinations_gRNA[i][1]] * p_gRNA_act[ind_combinations_gRNA[i][2]]
+        p_combinations_gRNA_library[i] = p_gRNA_freq[ind_combinations_gRNA[i][1]] * p_gRNA_freq[ind_combinations_gRNA[i][2]]
+        p_combinations_gRNA_act[i] = p_gRNA_edit[ind_combinations_gRNA[i][1]] * p_gRNA_edit[ind_combinations_gRNA[i][2]]
     end
     
     # normalize probability gRNA combinations
@@ -528,7 +532,7 @@ function BioCCP_Pₓ₂(n_targets, sample_size,
     p_combinations_gRNA_act_interest = []
     ind_combinations_gRNA_interest = []
     for i in 1:n_combinations_gRNA
-        if ceil(ind_combinations_gRNA[i][1]/n_gRNA_pergene) != ceil(ind_combinations_gRNA[i][2]/n_gRNA_pergene)
+        if ceil(ind_combinations_gRNA[i][1]/g) != ceil(ind_combinations_gRNA[i][2]/g)
             push!(p_combinations_gRNA_library_interest, p_combinations_gRNA_library[i])
             push!(p_combinations_gRNA_act_interest, p_combinations_gRNA_act[i])
             push!(ind_combinations_gRNA_interest, ind_combinations_gRNA[i])
@@ -536,43 +540,43 @@ function BioCCP_Pₓ₂(n_targets, sample_size,
     end
         
     n_combinations_gRNA_interest = length(p_combinations_gRNA_library_interest)
-    p_combinations_gRNA = p_combinations_gRNA_library_interest .* p_combinations_gRNA_act_interest * ϵ_knockout_global^2
+    p_combinations_gRNA = p_combinations_gRNA_library_interest .* p_combinations_gRNA_act_interest * ϵ_KO^2
 
-    #### INTEGREREN PER GENCOMBINATIE
-    p_genes_matrix = zeros(n_targets, n_targets)
+    # sum up probabilities or gRNA combinations for corresponding gene knockout combinations
+    p_genes_matrix = zeros(x, x)
     for i in 1:n_combinations_gRNA_interest
-        gene1 = Int(ceil(ind_combinations_gRNA_interest[i][1]/n_gRNA_pergene))
-        gene2 = Int(ceil(ind_combinations_gRNA_interest[i][2]/n_gRNA_pergene))
+        gene1 = Int(ceil(ind_combinations_gRNA_interest[i][1]/g))
+        gene2 = Int(ceil(ind_combinations_gRNA_interest[i][2]/g))
         p_genes_matrix[gene1, gene2] += p_combinations_gRNA[i]
     end
 
     p_genes = collect([p_genes_matrix[i, j] for j in 2:size(p_genes_matrix, 1) for i in 1:j-1])  
     n_combinations_genes = length(p_genes)
-    combinations_pp = length(collect(combinations(1:n_gRNA_perconstruct, 2)))
+    combinations_pp = length(collect(combinations(1:r, 2)))
     
-    return success_probability(n_combinations_genes, sample_size; p=p_genes, r=combinations_pp, normalize=false)
+    return success_probability(n_combinations_genes, N; p=p_genes, r=combinations_pp, normalize=false)
 end
 
 """
-    BioCCP_γₓ₂(n_targets, 
-                sample_size,
-                n_gRNA_pergene, 
-                n_gRNA_perconstruct, 
+    BioCCP_γₓ₂(x, 
+                N,
+                g, 
+                r, 
                 n_gRNA_total, 
-                p_gRNA_library, 
-                p_gRNA_act, 
-                ϵ_knockout_global)
+                p_gRNA_freq, 
+                p_gRNA_edit, 
+                ϵ_KO)
 
 Employs the BioCCP.jl package to calculate the expected represented fraction of the design space, here consisting of all pairwise combinations of gene knockouts 
 in the combinatorial gene knockout library of a multiplex CRISPR/Cas experiment, 
 with respect to a specified plant library size (number of plants analyzed).
 """
-function BioCCP_γₓ₂(n_targets, sample_size,
-                                         n_gRNA_pergene, 
-                                         n_gRNA_perconstruct, 
+function BioCCP_γₓ₂(x, N,
+                                         g, 
+                                         r, 
                                          n_gRNA_total, 
-                                         p_gRNA_library, 
-                                         p_gRNA_act, ϵ_knockout_global)
+                                         p_gRNA_freq, 
+                                         p_gRNA_edit, ϵ_KO)
     
     # how many pairwise combinations of gRNAs
     ind_combinations_gRNA = collect(combinations(1:n_gRNA_total, 2))
@@ -582,8 +586,8 @@ function BioCCP_γₓ₂(n_targets, sample_size,
     p_combinations_gRNA_library = zeros(n_combinations_gRNA)
     p_combinations_gRNA_act = zeros(n_combinations_gRNA)
     for i in 1:n_combinations_gRNA
-        p_combinations_gRNA_library[i] = p_gRNA_library[ind_combinations_gRNA[i][1]] * p_gRNA_library[ind_combinations_gRNA[i][2]]
-        p_combinations_gRNA_act[i] = p_gRNA_act[ind_combinations_gRNA[i][1]] * p_gRNA_act[ind_combinations_gRNA[i][2]]
+        p_combinations_gRNA_library[i] = p_gRNA_freq[ind_combinations_gRNA[i][1]] * p_gRNA_freq[ind_combinations_gRNA[i][2]]
+        p_combinations_gRNA_act[i] = p_gRNA_edit[ind_combinations_gRNA[i][1]] * p_gRNA_edit[ind_combinations_gRNA[i][2]]
     end
     
     # normalize probability gRNA combinations
@@ -594,7 +598,7 @@ function BioCCP_γₓ₂(n_targets, sample_size,
     p_combinations_gRNA_act_interest = []
     ind_combinations_gRNA_interest = []
     for i in 1:n_combinations_gRNA
-        if ceil(ind_combinations_gRNA[i][1]/n_gRNA_pergene) != ceil(ind_combinations_gRNA[i][2]/n_gRNA_pergene)
+        if ceil(ind_combinations_gRNA[i][1]/g) != ceil(ind_combinations_gRNA[i][2]/g)
             push!(p_combinations_gRNA_library_interest, p_combinations_gRNA_library[i])
             push!(p_combinations_gRNA_act_interest, p_combinations_gRNA_act[i])
             push!(ind_combinations_gRNA_interest, ind_combinations_gRNA[i])
@@ -602,44 +606,44 @@ function BioCCP_γₓ₂(n_targets, sample_size,
     end
         
     n_combinations_gRNA_interest = length(p_combinations_gRNA_library_interest)
-    p_combinations_gRNA = p_combinations_gRNA_library_interest .* p_combinations_gRNA_act_interest * ϵ_knockout_global^2
+    p_combinations_gRNA = p_combinations_gRNA_library_interest .* p_combinations_gRNA_act_interest * ϵ_KO^2
 
-    #### INTEGREREN PER GENCOMBINATIE
-    p_genes_matrix = zeros(n_targets, n_targets)
+    # sum up probabilities or gRNA combinations for corresponding gene knockout combinations
+    p_genes_matrix = zeros(x, x)
     for i in 1:n_combinations_gRNA_interest
-        gene1 = Int(ceil(ind_combinations_gRNA_interest[i][1]/n_gRNA_pergene))
-        gene2 = Int(ceil(ind_combinations_gRNA_interest[i][2]/n_gRNA_pergene))
+        gene1 = Int(ceil(ind_combinations_gRNA_interest[i][1]/g))
+        gene2 = Int(ceil(ind_combinations_gRNA_interest[i][2]/g))
         p_genes_matrix[gene1, gene2] += p_combinations_gRNA[i]
     end
 
     p_genes = collect([p_genes_matrix[i, j] for j in 2:size(p_genes_matrix, 1) for i in 1:j-1])  
     n_combinations_genes = length(p_genes)
-    combinations_pp = length(collect(combinations(1:n_gRNA_perconstruct, 2)))
+    combinations_pp = length(collect(combinations(1:r, 2)))
     
-    return expectation_fraction_collected(n_combinations_genes, sample_size; p=p_genes, r=combinations_pp, normalize=false)
+    return expectation_fraction_collected(n_combinations_genes, N; p=p_genes, r=combinations_pp, normalize=false)
 end
 
 
 """
-    BioCCP_γₓ₃(n_targets, 
-                sample_size,
-                n_gRNA_pergene, 
-                n_gRNA_perconstruct, 
+    BioCCP_γₓ₃(x, 
+                N,
+                g, 
+                r, 
                 n_gRNA_total, 
-                p_gRNA_library, 
-                p_gRNA_act, 
-                ϵ_knockout_global)
+                p_gRNA_freq, 
+                p_gRNA_edit, 
+                ϵ_KO)
 
 Employs the BioCCP.jl package to calculate the RES3 of a multiplex CRISPR/Cas experiment.
 """
-function BioCCP_γₓ₃(n_targets, 
-                sample_size,
-                n_gRNA_pergene, 
-                n_gRNA_perconstruct, 
+function BioCCP_γₓ₃(x, 
+                N,
+                g, 
+                r, 
                 n_gRNA_total, 
-                p_gRNA_library, 
-                p_gRNA_act, 
-                ϵ_knockout_global)
+                p_gRNA_freq, 
+                p_gRNA_edit, 
+                ϵ_KO)
     
     # how many pairwise combinations of gRNAs
     ind_combinations_gRNA = collect(combinations(1:n_gRNA_total, 3))
@@ -649,8 +653,8 @@ function BioCCP_γₓ₃(n_targets,
     p_combinations_gRNA_library = zeros(n_combinations_gRNA)
     p_combinations_gRNA_act = zeros(n_combinations_gRNA)
     for i in 1:n_combinations_gRNA
-        p_combinations_gRNA_library[i] = p_gRNA_library[ind_combinations_gRNA[i][1]] * p_gRNA_library[ind_combinations_gRNA[i][2]] * p_gRNA_library[ind_combinations_gRNA[i][3]]
-        p_combinations_gRNA_act[i] = p_gRNA_act[ind_combinations_gRNA[i][1]] * p_gRNA_act[ind_combinations_gRNA[i][2]] * p_gRNA_act[ind_combinations_gRNA[i][3]]
+        p_combinations_gRNA_library[i] = p_gRNA_freq[ind_combinations_gRNA[i][1]] * p_gRNA_freq[ind_combinations_gRNA[i][2]] * p_gRNA_freq[ind_combinations_gRNA[i][3]]
+        p_combinations_gRNA_act[i] = p_gRNA_edit[ind_combinations_gRNA[i][1]] * p_gRNA_edit[ind_combinations_gRNA[i][2]] * p_gRNA_edit[ind_combinations_gRNA[i][3]]
     end
     
     # normalize probability gRNA combinations
@@ -661,7 +665,7 @@ function BioCCP_γₓ₃(n_targets,
     p_combinations_gRNA_act_interest = []
     ind_combinations_gRNA_interest = []
     for i in 1:n_combinations_gRNA
-        if ceil(ind_combinations_gRNA[i][1]/n_gRNA_pergene) != ceil(ind_combinations_gRNA[i][2]/n_gRNA_pergene) && ceil(ind_combinations_gRNA[i][1]/n_gRNA_pergene) != ceil(ind_combinations_gRNA[i][3]/n_gRNA_pergene) && ceil(ind_combinations_gRNA[i][3]/n_gRNA_pergene) != ceil(ind_combinations_gRNA[i][2]/n_gRNA_pergene)
+        if ceil(ind_combinations_gRNA[i][1]/g) != ceil(ind_combinations_gRNA[i][2]/g) && ceil(ind_combinations_gRNA[i][1]/g) != ceil(ind_combinations_gRNA[i][3]/g) && ceil(ind_combinations_gRNA[i][3]/g) != ceil(ind_combinations_gRNA[i][2]/g)
             push!(p_combinations_gRNA_library_interest, p_combinations_gRNA_library[i])
             push!(p_combinations_gRNA_act_interest, p_combinations_gRNA_act[i])
             push!(ind_combinations_gRNA_interest, ind_combinations_gRNA[i])
@@ -669,49 +673,49 @@ function BioCCP_γₓ₃(n_targets,
     end
         
     n_combinations_gRNA_interest = length(p_combinations_gRNA_library_interest)
-    p_combinations_gRNA = p_combinations_gRNA_library_interest .* p_combinations_gRNA_act_interest * ϵ_knockout_global^3
+    p_combinations_gRNA = p_combinations_gRNA_library_interest .* p_combinations_gRNA_act_interest * ϵ_KO^3
 
-    #### INTEGREREN PER GENCOMBINATIE
-    p_genes_matrix = zeros(n_targets, n_targets, n_targets)
+    # sum up probabilities or gRNA combinations for corresponding gene knockout combinations
+    p_genes_matrix = zeros(x, x, x)
     for i in 1:n_combinations_gRNA_interest
-        gene1 = Int(ceil(ind_combinations_gRNA_interest[i][1]/n_gRNA_pergene))
-        gene2 = Int(ceil(ind_combinations_gRNA_interest[i][2]/n_gRNA_pergene))
-        gene3 = Int(ceil(ind_combinations_gRNA_interest[i][3]/n_gRNA_pergene))
+        gene1 = Int(ceil(ind_combinations_gRNA_interest[i][1]/g))
+        gene2 = Int(ceil(ind_combinations_gRNA_interest[i][2]/g))
+        gene3 = Int(ceil(ind_combinations_gRNA_interest[i][3]/g))
         p_genes_matrix[gene1, gene2, gene3] += p_combinations_gRNA[i]
     end
     
-    combinations_genes = collect(combinations(1:n_targets, 3))
+    combinations_genes = collect(combinations(1:x, 3))
     p_genes = []
         for combination in combinations_genes
             push!(p_genes, p_genes_matrix[combination[1], combination[2], combination[3]])
         end
         
     n_combinations_genes = length(p_genes)
-    combinations_pp = length(collect(combinations(1:n_gRNA_perconstruct, 3)))
+    combinations_pp = length(collect(combinations(1:r, 3)))
     
-    return expectation_fraction_collected(n_combinations_genes, sample_size; p=p_genes, r=combinations_pp, normalize=false)
+    return expectation_fraction_collected(n_combinations_genes, N; p=p_genes, r=combinations_pp, normalize=false)
 end
 
 """
-    BioCCP_Pₓ₃(n_targets, 
-                sample_size,
-                n_gRNA_pergene, 
-                n_gRNA_perconstruct, 
+    BioCCP_Pₓ₃(x, 
+                N,
+                g, 
+                r, 
                 n_gRNA_total, 
-                p_gRNA_library, 
-                p_gRNA_act, 
-                ϵ_knockout_global)
+                p_gRNA_freq, 
+                p_gRNA_edit, 
+                ϵ_KO)
 
 Employs the BioCCP.jl package to calculate the RES3 of a multiplex CRISPR/Cas experiment.
 """
-function BioCCP_Pₓ₃(n_targets, 
-                sample_size,
-                n_gRNA_pergene, 
-                n_gRNA_perconstruct, 
+function BioCCP_Pₓ₃(x, 
+                N,
+                g, 
+                r, 
                 n_gRNA_total, 
-                p_gRNA_library, 
-                p_gRNA_act, 
-                ϵ_knockout_global)
+                p_gRNA_freq, 
+                p_gRNA_edit, 
+                ϵ_KO)
     
     # how many pairwise combinations of gRNAs
     ind_combinations_gRNA = collect(combinations(1:n_gRNA_total, 3))
@@ -721,8 +725,8 @@ function BioCCP_Pₓ₃(n_targets,
     p_combinations_gRNA_library = zeros(n_combinations_gRNA)
     p_combinations_gRNA_act = zeros(n_combinations_gRNA)
     for i in 1:n_combinations_gRNA
-        p_combinations_gRNA_library[i] = p_gRNA_library[ind_combinations_gRNA[i][1]] * p_gRNA_library[ind_combinations_gRNA[i][2]] * p_gRNA_library[ind_combinations_gRNA[i][3]]
-        p_combinations_gRNA_act[i] = p_gRNA_act[ind_combinations_gRNA[i][1]] * p_gRNA_act[ind_combinations_gRNA[i][2]] * p_gRNA_act[ind_combinations_gRNA[i][3]]
+        p_combinations_gRNA_library[i] = p_gRNA_freq[ind_combinations_gRNA[i][1]] * p_gRNA_freq[ind_combinations_gRNA[i][2]] * p_gRNA_freq[ind_combinations_gRNA[i][3]]
+        p_combinations_gRNA_act[i] = p_gRNA_edit[ind_combinations_gRNA[i][1]] * p_gRNA_edit[ind_combinations_gRNA[i][2]] * p_gRNA_edit[ind_combinations_gRNA[i][3]]
     end
     
     # normalize probability gRNA combinations
@@ -733,7 +737,7 @@ function BioCCP_Pₓ₃(n_targets,
     p_combinations_gRNA_act_interest = []
     ind_combinations_gRNA_interest = []
     for i in 1:n_combinations_gRNA
-        if ceil(ind_combinations_gRNA[i][1]/n_gRNA_pergene) != ceil(ind_combinations_gRNA[i][2]/n_gRNA_pergene) && ceil(ind_combinations_gRNA[i][1]/n_gRNA_pergene) != ceil(ind_combinations_gRNA[i][3]/n_gRNA_pergene) && ceil(ind_combinations_gRNA[i][3]/n_gRNA_pergene) != ceil(ind_combinations_gRNA[i][2]/n_gRNA_pergene)
+        if ceil(ind_combinations_gRNA[i][1]/g) != ceil(ind_combinations_gRNA[i][2]/g) && ceil(ind_combinations_gRNA[i][1]/g) != ceil(ind_combinations_gRNA[i][3]/g) && ceil(ind_combinations_gRNA[i][3]/g) != ceil(ind_combinations_gRNA[i][2]/g)
             push!(p_combinations_gRNA_library_interest, p_combinations_gRNA_library[i])
             push!(p_combinations_gRNA_act_interest, p_combinations_gRNA_act[i])
             push!(ind_combinations_gRNA_interest, ind_combinations_gRNA[i])
@@ -741,27 +745,27 @@ function BioCCP_Pₓ₃(n_targets,
     end
         
     n_combinations_gRNA_interest = length(p_combinations_gRNA_library_interest)
-    p_combinations_gRNA = p_combinations_gRNA_library_interest .* p_combinations_gRNA_act_interest * ϵ_knockout_global^3
+    p_combinations_gRNA = p_combinations_gRNA_library_interest .* p_combinations_gRNA_act_interest * ϵ_KO^3
 
-    #### INTEGREREN PER GENCOMBINATIE
-    p_genes_matrix = zeros(n_targets, n_targets, n_targets)
+    # sum up probabilities or gRNA combinations for corresponding gene knockout combinations
+    p_genes_matrix = zeros(x, x, x)
     for i in 1:n_combinations_gRNA_interest
-        gene1 = Int(ceil(ind_combinations_gRNA_interest[i][1]/n_gRNA_pergene))
-        gene2 = Int(ceil(ind_combinations_gRNA_interest[i][2]/n_gRNA_pergene))
-        gene3 = Int(ceil(ind_combinations_gRNA_interest[i][3]/n_gRNA_pergene))
+        gene1 = Int(ceil(ind_combinations_gRNA_interest[i][1]/g))
+        gene2 = Int(ceil(ind_combinations_gRNA_interest[i][2]/g))
+        gene3 = Int(ceil(ind_combinations_gRNA_interest[i][3]/g))
         p_genes_matrix[gene1, gene2, gene3] += p_combinations_gRNA[i]
     end
     
-    combinations_genes = collect(combinations(1:n_targets, 3))
+    combinations_genes = collect(combinations(1:x, 3))
     p_genes = []
         for combination in combinations_genes
             push!(p_genes, p_genes_matrix[combination[1], combination[2], combination[3]])
         end
         
     n_combinations_genes = length(p_genes)
-    combinations_pp = length(collect(combinations(1:n_gRNA_perconstruct, 3)))
+    combinations_pp = length(collect(combinations(1:r, 3)))
     
-    return success_probability(n_combinations_genes, sample_size; p=p_genes, r=combinations_pp, normalize=false)
+    return success_probability(n_combinations_genes, N; p=p_genes, r=combinations_pp, normalize=false)
 end
       
       
