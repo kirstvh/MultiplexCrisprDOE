@@ -10,13 +10,13 @@ Function name    | Short description
 ---------------- | -----------------
 `gRNA_frequency_distribution`        | Generates vector with frequencies in the combinatorial gRNA/Cas9 construct library for all gRNAs 
 `gRNA_edit_distribution`      | Generates vector with genome editing efficiencies for all the gRNAs in the experiment 
-`simulate_Nₓ₁`         | Computes E[Nₓ₁] and σ[Nₓ₁] of a CRISPR/Cas experiment, studying the minimal plant library size for full coverage of all single gene knockouts, using the simulation-based approach
-`BioCCP_Nₓ₁` | Computes E[Nₓ₁] and σ[Nₓ₁] of a CRISPR/Cas experiment, studying the minimal plant library size for full coverage of all single gene knockouts, using the BioCCP-based approach
-`simulate_Nₓ₂`      | Computes  E[Nₓ₂] and σ[Nₓ₂] of multiplex CRISPR/Cas experiment, studying the minimal plant library size for full coverage of all pairwise combinations of gene knockouts, using the simulation-based approach
-`BioCCP_Nₓ₂`         | Computes  E[Nₓ₂] and σ[Nₓ₂] of a CRISPR/Cas experiment, studying the minimal plant library size for full coverage of all pairwise combinations of gene knockouts, using the BioCCP-based approach
-`simulate_Nₓ₂_countKOs` | description
-`simulate_Nₓ₃` | Computes  E[Nₓ₃] and σ[Nₓ₃] of a CRISPR/Cas experiment, studying the minimal plant library size for full coverage of all pairwise combinations of gene knockouts, using the simulation-based approach
-`BioCCP_Nₓ₃` | Computes  E[Nₓ₃] and σ[Nₓ₃] of a CRISPR/Cas experiment, studying the minimal plant library size for full coverage of all pairwise combinations of gene knockouts, using the BioCCP-based approach
+`simulate_Nₓ₁`         | Computes E[N<sub>x,1</sub>] and σ[N<sub>x,1</sub>] of a CRISPR/Cas experiment, studying the minimal plant library size for full coverage of all single gene knockouts, using the simulation-based approach
+`BioCCP_Nₓ₁` | Computes E[N<sub>x,1</sub>] and σ[N<sub>x,1</sub>] of a CRISPR/Cas experiment, studying the minimal plant library size for full coverage of all single gene knockouts, using the BioCCP-based approach
+`simulate_Nₓ₂`      | Computes  E[N<sub>x,2</sub>] and σ[N<sub>x,2</sub>] of multiplex CRISPR/Cas experiment, studying the minimal plant library size for full coverage of all pairwise combinations of gene knockouts, using the simulation-based approach
+`BioCCP_Nₓ₂`         | Computes  E[N<sub>x,2</sub>] and σ[N<sub>x,2</sub>] of a multiplex CRISPR/Cas experiment, studying the minimal plant library size for full coverage of all pairwise combinations of gene knockouts, using the BioCCP-based approach
+`simulate_Nₓ₂_countKOs` | Counts of the number of knockouts per plant in the experiment 
+`simulate_Nₓ₃` | Computes  E[N<sub>x,3</sub>] and σ[N<sub>x,3</sub>] of a multiplex CRISPR/Cas experiment, studying the minimal plant library size for full coverage of all pairwise combinations of gene knockouts, using the simulation-based approach
+`BioCCP_Nₓ₃` | Computes  E[N<sub>x,3</sub>] and σ[N<sub>x,3</sub>] of a multiplex CRISPR/Cas experiment, studying the minimal plant library size for full coverage of all pairwise combinations of gene knockouts, using the BioCCP-based approach
 
 The default values for the experimental design parameters used in this work can be found under `DefaultParameters_k=1.jl`, `DefaultParameters_k=2.jl` and `DefaultParameters_k=3.jl`.
 
