@@ -1,7 +1,7 @@
 """
     gRNA_frequency_distribution(m, sd, l, u, n_gRNA_total; normalize = true, visualize=false)
 
-Generates frequency distribution of the gRNAs in the combinatorial gRNA/Cas9 construct library.
+Generates vector with frequencies in the combinatorial gRNA/Cas9 construct library for all gRNAs
 
 m: the average abundance of the gRNAs (in terms of absolute or relative frequency)
 sd: the standard deviation on the gRNA abundances (in terms of absolute or relative frequency)
@@ -76,7 +76,7 @@ x: number of target genes in the experiment
 g: number of gRNAs designed per target gene
 r: number of gRNA sequences per combinatorial gRNA/Cas construct
 n_gRNA_total: total number of gRNAs in the experiment
-p_gRNA_freq: vector with relative frequencies for all gRNAs in the construct library
+p_gRNA_freq: vector with relative frequencies for all gRNAs in the construct library (normalized!)
 p_gRNA_edit: vector with genome editing efficiencies for all gRNAs 
 ϵ_KO: global knockout efficiency; fraction of mutations leading to effective gene knockout
 iter: number of CRISPR/Cas experiments that are simulated to obtain E[Nₓ₁] and σ[Nₓ₁]
@@ -135,7 +135,7 @@ x: number of target genes in the experiment
 g: number of gRNAs designed per target gene
 r: number of gRNA sequences per combinatorial gRNA/Cas construct
 n_gRNA_total: total number of gRNAs in the experiment
-p_gRNA_freq: vector with relative frequencies for all gRNAs in the construct library
+p_gRNA_freq: vector with relative frequencies for all gRNAs in the construct library (normalized!)
 p_gRNA_edit: vector with genome editing efficiencies for all gRNAs 
 ϵ_KO: global knockout efficiency; fraction of mutations leading to effective gene knockout
 """
@@ -164,7 +164,17 @@ end
                     ϵ_KO; 
                     iter=500)
 
-Simulation-based approach for calculating Nₓ₂ of multiplex CRISPR/Cas experiment.
+Simulation-based approach for calculating  E[Nₓ₂] and σ[Nₓ₂] of multiplex CRISPR/Cas experiment,
+studying the minimal plant library size for full coverage of all pairwise combinations of gene knockouts.
+
+x: number of target genes in the experiment
+g: number of gRNAs designed per target gene
+r: number of gRNA sequences per combinatorial gRNA/Cas construct
+n_gRNA_total: total number of gRNAs in the experiment
+p_gRNA_freq: vector with relative frequencies for all gRNAs in the construct library (normalized!)
+p_gRNA_edit: vector with genome editing efficiencies for all gRNAs 
+ϵ_KO: global knockout efficiency; fraction of mutations leading to effective gene knockout
+iter: number of CRISPR/Cas experiments that are simulated to obtain E[Nₓ₂] and σ[Nₓ₂]
 """
 function simulate_Nₓ₂(x, 
                                          g, 
@@ -172,17 +182,8 @@ function simulate_Nₓ₂(x,
                                          n_gRNA_total, 
                                          p_gRNA_freq, 
                                          p_gRNA_edit, ϵ_KO; iter=500)
-    """ 
-    INPUT
-  
-    
-    OUTPUT
-    E: expected minimum number of plants to gRNA_read_distributionsee each pairwise combination at least once
-    sd: standard deviation on the minimum number of plants
-    """
-    @assert x * g == n_gRNA_total
-#     @assert sum(p_gRNA_freq) == 1
-    
+
+    @assert x * g == n_gRNA_total    
     T_vec = [] #stores number of plants to reach full coverage of all pairwise combinations of gene knockouts for each simulated experiment
         for i in 1:iter     
             X_interactions_count = zeros(x, x) # Initialize matrix to count pairwise interactions
@@ -279,18 +280,27 @@ function BioCCP_Nₓ₂(x,
     return expectation_minsamplesize(n_combinations_genes; p=p_genes, r=combinations_pp, normalize=false), std_minsamplesize(n_combinations_genes; p=p_genes, r=combinations_pp, normalize=false)
 end
 
+"""
+    simulate_Nₓ₂_countKOs(x, 
+                                         g, 
+                                         r, 
+                                         n_gRNA_total, 
+                                         p_gRNA_freq, 
+                                         p_gRNA_edit, ϵ_KO; iter=100000)
+Counts of the number of knockouts per plant in the experiment.
+"""
 function simulate_Nₓ₂_countKOs(x, 
                                          g, 
                                          r, 
                                          n_gRNA_total, 
                                          p_gRNA_freq, 
-                                         p_gRNA_edit, ϵ_KO; iter=500)
+                                         p_gRNA_edit, ϵ_KO; iter=100000)
      
     @assert x * g == n_gRNA_total
     
             n_KOs = []
        
-            for j in 1:100000
+            for j in 1:iter
                                
                 # sample combinatorial gRNA/Cas9 construct
                 gRNA_indices_construct = findall((rand(Multinomial(r, p_gRNA_freq))) .!= 0)
