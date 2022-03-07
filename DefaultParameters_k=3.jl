@@ -16,7 +16,7 @@ p_gRNA_freq = gRNA_frequency_distribution(m, sd, l, u, n_gRNA_total; normalize=t
 
 Random.seed!(1)
 f_act = 0.9  # fraction of all gRNAs that is active
-ϵ_edit_act = 0.9;  # average genome editing efficiency of active gRNAs
+ϵ_edit_act = 0.95;  # average genome editing efficiency of active gRNAs
 ϵ_edit_inact = 0.1; # average genome editing efficiency of inactive gRNAs
 sd_act = 0.01  # standard deviation 
 p_gRNA_edit = gRNA_edit_distribution(f_act, ϵ_edit_act, ϵ_edit_inact, sd_act, n_gRNA_total; visualize=false); # generate genome editing distribution of the gRNAs
