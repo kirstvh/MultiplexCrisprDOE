@@ -30,3 +30,11 @@ The default values for the experimental design parameters used in this work can 
 The graphs and results from our work can be reproduced by running the Jupyter notebooks. 
 
 Values of design parameters can be adjusted so that researchers can do computations for their own multiplex CRISPR/Cas experiments.
+
+## Animation
+Consider a multiplex CRISPR/Cas experiment targeting pairwise combinations of gene knockouts, characterized by the experimental design parameters listed in the file `DefaultParameters_k=1.jl`.
+The animation below illustrates the occurence of pairwise combinations of gene knockouts when including an increasing number of plants in a plant library. 
+
+<img src="https://github.com/kirstvh/MultiplexCrisprDOE/blob/main/sampling_plants.gif" />
+
+
