@@ -1,0 +1,58 @@
+---
+title: MultiplexCrisprDOE
+---
+
+<!-- this setup dependencies, but doesn't appear in the generated document -->
+```julia; echo = false; results = "hidden"
+using Pkg
+"Plots" ∉ keys(Pkg.project().dependencies) && Pkg.add("Plots")
+#"DSP" ∉ keys(Pkg.project().dependencies) && Pkg.add("DSP")
+#"Images" ∉ keys(Pkg.project().dependencies) && Pkg.add("Images")
+"DataStructures" ∉ keys(Pkg.project().dependencies) && Pkg.add("DataStructures")
+"PrettyTables" ∉ keys(Pkg.project().dependencies) && Pkg.add("PrettyTables")
+"DataFrames" ∉ keys(Pkg.project().dependencies) && Pkg.add("DataFrames")
+"Latexify" ∉ keys(Pkg.project().dependencies) && Pkg.add("Latexify")
+```
+## Tool
+
+* **Method:**     `j println(WEAVE_ARGS.tool_info["method"])`
+
+* **Description:** `j println(WEAVE_ARGS.tool_info["description"])`
+
+* **Mode:** `j println(WEAVE_ARGS.tool_info["mode"])`
+
+* **Mode description:** `j println(WEAVE_ARGS.tool_info["mode_description"])`
+
+## Variables
+
+```julia; echo = false
+using DataFrames
+using PrettyTables
+df = DataFrame("Argument" => collect(keys(WEAVE_ARGS.args_info)), "Value" => collect(values(WEAVE_ARGS.args_info)))
+#pt = pretty_table(df, nosubheader=true; alignment=:l)
+```
+
+```julia; echo = false
+    using Plots
+    gr()
+    plot(WEAVE_ARGS.h1)
+```
+
+```julia; echo = false
+    using Plots
+    gr()
+    plot(WEAVE_ARGS.h2)
+```
+
+**How many plants need to be included in the plant library (on average) to obtain full coverage of all k-combinations of gene knockouts?**
+
+```julia; echo = false; results = "hidden"
+    if haskey(WEAVE_ARGS.output,"E_sim")
+        E_sim = WEAVE_ARGS.output["E_sim"]
+        sd_sim = WEAVE_ARGS.output["sd_sim"]
+        k = WEAVE_ARGS.args_info["# of gRNAs / combi gRNA/Cas construct"]
+        x = WEAVE_ARGS.args_info["# of target genes in the experiment"]
+    end
+```
+
+`j println("On average, ", Int(ceil(E_sim)), " plants need to be sampled at random to observe all ", k, "-combinations of ", x, " gene knockouts. Standard deviation = ", Int(ceil(sd_sim)), " plants")`
