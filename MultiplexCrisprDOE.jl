@@ -21,14 +21,21 @@ visualize: if set to "true", a histogram of all gRNA abundances is plotted
 ***OUTPUT***
 p_gRNA_freq: vector with frequencies for all gRNAs in the construct library
 """
-function gRNA_frequency_distribution(m, 
-                                    sd, 
-                                    l, 
-                                    u, 
-                                    n_gRNA_total; 
+function gRNA_frequency_distribution(m::Real, 
+                                    sd::Real, 
+                                    l::Real, 
+                                    u::Real, 
+                                    n_gRNA_total::Int64; 
                                     normalize = true, 
                                     visualize = false)
+    
+      
+    ### constraints on parameters
+    @assert m > 0 && sd > 0 && l > 0 && u > 0
+    @assert l < m < u
+    @assert n_gRNA_total > 0
 
+    ### generate distribution
     d_gRNA_freq = truncated(Normal(m, sd), l, u)  # gRNA frequency distribution
     p_gRNA_freq = collect(rand(d_gRNA_freq, n_gRNA_total))  # sample gRNA frequencies from distribution
     
@@ -71,7 +78,21 @@ visualize: if set to "true", a histogram of all genome editing efficiency is plo
 ***OUTPUT***
 p_gRNA_edit: vector with genome editing efficiencies for all gRNAs
 """
-function gRNA_edit_distribution(f_act, ϵ_edit_act, ϵ_edit_inact, sd_act, n_gRNA_total; visualize=false)   
+function gRNA_edit_distribution(f_act::Real, 
+                                ϵ_edit_act::Real, 
+                                ϵ_edit_inact::Float64, 
+                                sd_act::Float64, 
+                                n_gRNA_total::Int64; 
+                                visualize=false)   
+    
+    ### constraints on parameters
+    @assert 0 < f_act <= 1
+    @assert 0.5 < ϵ_edit_act <= 1
+    @assert 0 < ϵ_edit_inact <= 0.5
+    @assert sd_act > 0
+    @assert n_gRNA_total > 0
+    
+    ### generate distribution    
     d_act = Binomial(1, f_act) # there is a probability f_act that a gRNA is active
     d_high_act = truncated(Normal(ϵ_edit_act, sd_act), 0.01, 1)  # average genome editing efficiency for active gRNAs is equal to ϵ_edit_act
     d_low_act = truncated(Normal(ϵ_edit_inact, sd_act), 0.01, 1) # average genome editing efficiency for inactive gRNAs is equal to ϵ_edit_inact
@@ -105,31 +126,6 @@ end
 
 """
     simulate_Nₓ₁(x, 
-                g, 
-                r, 
-                n_gRNA_total, 
-                p_gRNA_freq, 
-                p_gRNA_edit, 
-                ϵ_KO; 
-                iter = 500)
-
-Computes the expected value and the standard deviation of the minimal plant library size for full coverage of all single gene knockouts (E[Nx,1] and σ[Nx,1]) using simulation
-
-***INPUT***
-x: number of target genes in the experiment
-g: number of gRNAs designed per target gene
-r: number of gRNA sequences per combinatorial gRNA/Cas construct
-n_gRNA_total: total number of gRNAs in the experiment
-p_gRNA_freq: vector with relative frequencies for all gRNAs in the construct library (normalized!)
-p_gRNA_edit: vector with genome editing efficiencies for all gRNAs 
-ϵ_KO: global knockout efficiency; fraction of mutations leading to effective gene knockout
-iter: number of CRISPR/Cas experiments that are simulated to obtain E[Nₓ₁] and σ[Nₓ₁]
-
-***OUTPUT***
-E_Nₓ₁: expected value of the plant library size for full coverage of all single gene knockouts
-sd_Nₓ₁: standard deviation on the plant library size for full coverage of all single gene knockouts
-"""
-function simulate_Nₓ₁(x, 
                     g, 
                     r, 
                     n_gRNA_total, 
@@ -138,7 +134,41 @@ function simulate_Nₓ₁(x,
                     ϵ_KO; 
                     iter = 500)
 
-    @assert x * g == n_gRNA_total     
+Computes the expected value and the standard deviation of the minimal plant library size for full coverage of all single gene knockouts (E[Nx,1] and σ[Nx,1]) using simulation
+
+***INPUT***
+x: number of target genes in the experiment
+g: number of gRNAs designed per target gene
+r: number of gRNA sequences per combinatorial gRNA/Cas construct (>= 1)
+n_gRNA_total: total number of gRNAs in the experiment (should be equal to x * g)
+p_gRNA_freq: vector with relative frequencies for all gRNAs in the construct library (normalized!)
+p_gRNA_edit: vector with genome editing efficiencies for all gRNAs (each genome editing efficiency in ]0,1])
+ϵ_KO: global knockout efficiency; fraction of mutations leading to effective gene knockout (]0, 1])
+iter: number of CRISPR/Cas experiments that are simulated to obtain E[Nₓ₁] and σ[Nₓ₁]
+
+***OUTPUT***
+E_Nₓ₁: expected value of the plant library size for full coverage of all single gene knockouts
+sd_Nₓ₁: standard deviation on the plant library size for full coverage of all single gene knockouts
+"""
+function simulate_Nₓ₁(x::Int64, 
+                    g::Int64, 
+                    r::Int64, 
+                    n_gRNA_total::Int64, 
+                    p_gRNA_freq::Vector{Float64}, 
+                    p_gRNA_edit::Vector{Float64}, 
+                    ϵ_KO::Real; 
+                    iter = 500)
+    
+    ### constraints on parameters
+    @assert x > 0 && g > 0
+    @assert x * g == n_gRNA_total   
+    @assert r >= 1
+    @assert 1 - 1e-4 < sum(p_gRNA_freq) < 1 + 1e4
+    @assert length(p_gRNA_freq) == n_gRNA_total
+    @assert all(0 .< p_gRNA_edit .<= 1)
+    @assert length(p_gRNA_edit) == n_gRNA_total
+    @assert 0 < ϵ_KO <= 1
+    
     Nₓ₁_vec = [] #stores number of plants to reach full coverage for each simulated experiment
         for i in 1:iter       
             genes_vec = [] # Initialize vector to store single gene knockouts that are observed in plants
@@ -198,13 +228,23 @@ p_gRNA_edit: vector with genome editing efficiencies for all gRNAs
 E_Nₓ₁ : expected value of the plant library size for full coverage of all single gene knockouts
 sd_Nₓ₁ : standard deviation on the plant library size for full coverage of all single gene knockouts
 """
-function BioCCP_Nₓ₁(x, 
-                    g, 
-                    r, 
-                    n_gRNA_total, 
-                    p_gRNA_freq, 
-                    p_gRNA_edit, 
-                    ϵ_KO)
+function BioCCP_Nₓ₁(x::Int64, 
+                    g::Int64, 
+                    r::Int64, 
+                    n_gRNA_total::Int64, 
+                    p_gRNA_freq::Vector{Float64}, 
+                    p_gRNA_edit::Vector{Float64}, 
+                    ϵ_KO::Real)
+    
+    ### constraints on parameters
+    @assert x > 0 && g > 0
+    @assert x * g == n_gRNA_total   
+    @assert r >= 1
+    @assert 1 - 1e-4 < sum(p_gRNA_freq) < 1 + 1e4
+    @assert length(p_gRNA_freq) == n_gRNA_total
+    @assert all(0 .< p_gRNA_edit .<= 1)
+    @assert length(p_gRNA_edit) == n_gRNA_total
+    @assert 0 < ϵ_KO <= 1
     
     # prepare input for BioCCP functions
     p_gRNAs = p_gRNA_freq .* p_gRNA_edit * ϵ_KO  # calculate probability for each gRNA to induce effective gene knockout
@@ -245,16 +285,26 @@ iter: number of CRISPR/Cas experiments that are simulated to obtain E[Nₓ₂] a
 E_Nₓ₂ : expected value of the plant library size for full coverage of all pairwise combinations of gene knockouts
 sd_Nₓ₂ : standard deviation on the plant library size for full coverage of all pairwise combinations of gene knockouts
 """
-function simulate_Nₓ₂(x, 
-                    g, 
-                    r, 
-                    n_gRNA_total, 
-                    p_gRNA_freq, 
-                    p_gRNA_edit, 
-                    ϵ_KO; 
+function simulate_Nₓ₂(x::Int64, 
+                    g::Int64, 
+                    r::Int64, 
+                    n_gRNA_total::Int64, 
+                    p_gRNA_freq::Vector{Float64}, 
+                    p_gRNA_edit::Vector{Float64}, 
+                    ϵ_KO::Real; 
                     iter = 500)
-
-    @assert x * g == n_gRNA_total    
+    
+    ### constraints on parameters
+    @assert x > 0 && g > 0
+    @assert x * g == n_gRNA_total   
+    @assert r >= 2
+    @assert 1 - 1e-4 < sum(p_gRNA_freq) < 1 + 1e4
+    @assert length(p_gRNA_freq) == n_gRNA_total
+    @assert all(0 .< p_gRNA_edit .<= 1)
+    @assert length(p_gRNA_edit) == n_gRNA_total
+    @assert 0 < ϵ_KO <= 1
+        
+    
     Nₓ₂_vec = [] #stores number of plants to reach full coverage of all pairwise combinations of gene knockouts for each simulated experiment
        
     for i in 1:iter     
@@ -318,12 +368,23 @@ p_gRNA_edit: vector with genome editing efficiencies for all gRNAs
 E_Nₓ₂: expected value of the plant library size for full coverage of all pairwise combinations of gene knockouts
 sd_Nₓ₂: standard deviation on the plant library size for full coverage of all pairwise combinations of gene knockouts
 """
-function BioCCP_Nₓ₂(x, 
-                                         g, 
-                                         r, 
-                                         n_gRNA_total, 
-                                         p_gRNA_freq, 
-                                         p_gRNA_edit, ϵ_KO)
+function BioCCP_Nₓ₂(x::Int64, 
+                    g::Int64, 
+                    r::Int64, 
+                    n_gRNA_total::Int64, 
+                    p_gRNA_freq::Vector{Float64}, 
+                    p_gRNA_edit::Vector{Float64}, 
+                    ϵ_KO::Real)
+    
+    ### constraints on parameters
+    @assert x > 0 && g > 0
+    @assert x * g == n_gRNA_total   
+    @assert r >= 2
+    @assert 1 - 1e-4 < sum(p_gRNA_freq) < 1 + 1e4
+    @assert length(p_gRNA_freq) == n_gRNA_total
+    @assert all(0 .< p_gRNA_edit .<= 1)
+    @assert length(p_gRNA_edit) == n_gRNA_total
+    @assert 0 < ϵ_KO <= 1
     
     # how many pairwise combinations of gRNAs
     ind_combinations_gRNA = collect(combinations(1:n_gRNA_total, 2))
@@ -455,17 +516,27 @@ iter: number of CRISPR/Cas experiments that are simulated to obtain E[Nₓ₃] a
 E_Nₓ₃: expecteded value of the plant library size for full coverage of all triple combinations of gene knockouts
 sd_Nₓ₃: standard deviation on the plant library size for full coverage of all triple combinations of gene knockouts
 """
-function simulate_Nₓ₃(x, 
-                    g, 
-                    r, 
-                    n_gRNA_total, 
-                    p_gRNA_freq, 
-                    p_gRNA_edit, 
-                    ϵ_KO; 
+function simulate_Nₓ₃(x::Int64, 
+                    g::Int64, 
+                    r::Int64, 
+                    n_gRNA_total::Int64, 
+                    p_gRNA_freq::Vector{Float64}, 
+                    p_gRNA_edit::Vector{Float64}, 
+                    ϵ_KO::Real; 
                     iter = 500)
-
-    @assert x * g == n_gRNA_total
-
+    
+    ### constraints on parameters
+    @assert x > 0 && g > 0
+    @assert x * g == n_gRNA_total   
+    @assert r >= 3
+    @assert 1 - 1e-4 < sum(p_gRNA_freq) < 1 + 1e4
+    @assert length(p_gRNA_freq) == n_gRNA_total
+    @assert all(0 .< p_gRNA_edit .<= 1)
+    @assert length(p_gRNA_edit) == n_gRNA_total
+    @assert 0 < ϵ_KO <= 1
+    @assert iter > 1
+    
+    
     Nₓ₃_vec = [] # stores number of plants required for each experiment
 
     for i in 1:iter       
@@ -549,13 +620,23 @@ p_gRNA_edit: vector with genome editing efficiencies for all gRNAs
 E_Nₓ₃: expecteded value of the plant library size for full coverage of all triple combinations of gene knockouts
 sd_Nₓ₃: standard deviation on the plant library size for full coverage of all triple combinations of gene knockouts
 """
-function BioCCP_Nₓ₃(x, 
-                    g, 
-                    r, 
-                    n_gRNA_total, 
-                    p_gRNA_freq, 
-                    p_gRNA_edit, 
-                    ϵ_KO)
+function BioCCP_Nₓ₃(x::Int64, 
+                    g::Int64, 
+                    r::Int64, 
+                    n_gRNA_total::Int64, 
+                    p_gRNA_freq::Vector{Float64}, 
+                    p_gRNA_edit::Vector{Float64}, 
+                    ϵ_KO::Real)
+    
+    ### constraints on parameters
+    @assert x > 0 && g > 0
+    @assert x * g == n_gRNA_total   
+    @assert r >= 3
+    @assert 1 - 1e-4 < sum(p_gRNA_freq) < 1 + 1e4
+    @assert length(p_gRNA_freq) == n_gRNA_total
+    @assert all(0 .< p_gRNA_edit .<= 1)
+    @assert length(p_gRNA_edit) == n_gRNA_total
+    @assert 0 < ϵ_KO <= 1
     
     # how many triple combinations of gRNAs
     ind_combinations_gRNA = collect(combinations(1:n_gRNA_total, 3))
@@ -638,14 +719,25 @@ p_gRNA_edit: vector with genome editing efficiencies for all gRNAs
 Pₓ₁: probability of full coverage of all single gene knockouts
 
 """
-function BioCCP_Pₓ₁(x, 
-                    N,
-                    g, 
-                    r, 
-                    n_gRNA_total, 
-                    p_gRNA_freq, 
-                    p_gRNA_edit, 
-                    ϵ_KO)
+function BioCCP_Pₓ₁(x::Int64, 
+                    N::Int64,
+                    g::Int64, 
+                    r::Int64, 
+                    n_gRNA_total::Int64, 
+                    p_gRNA_freq::Vector{Float64}, 
+                    p_gRNA_edit::Vector{Float64}, 
+                    ϵ_KO::Real)
+    
+    ### constraints on parameters
+    @assert N > 0 && x > 0 && g > 0
+    @assert x * g == n_gRNA_total   
+    @assert r >= 1
+    @assert 1 - 1e-4 < sum(p_gRNA_freq) < 1 + 1e4
+    @assert length(p_gRNA_freq) == n_gRNA_total
+    @assert all(0 .< p_gRNA_edit .<= 1)
+    @assert length(p_gRNA_edit) == n_gRNA_total
+    @assert 0 < ϵ_KO <= 1
+    
     
     # prepare input
     p_gRNAs = p_gRNA_freq .* p_gRNA_edit * ϵ_KO
@@ -682,14 +774,24 @@ p_gRNA_edit: vector with genome editing efficiencies for all gRNAs
 ***OUTPUT***
 γₓ₁: expected coverage of all single gene knockouts
 """
-function BioCCP_γₓ₁(x, 
-                    N,
-                    g, 
-                    r, 
-                    n_gRNA_total, 
-                    p_gRNA_freq, 
-                    p_gRNA_edit, 
-                    ϵ_KO)
+function BioCCP_γₓ₁(x::Int64, 
+                    N::Int64,
+                    g::Int64, 
+                    r::Int64, 
+                    n_gRNA_total::Int64, 
+                    p_gRNA_freq::Vector{Float64}, 
+                    p_gRNA_edit::Vector{Float64}, 
+                    ϵ_KO::Real)
+    
+    ### constraints on parameters
+    @assert N > 0 && x > 0 && g > 0
+    @assert x * g == n_gRNA_total   
+    @assert r >= 1
+    @assert 1 - 1e-4 < sum(p_gRNA_freq) < 1 + 1e4
+    @assert length(p_gRNA_freq) == n_gRNA_total
+    @assert all(0 .< p_gRNA_edit .<= 1)
+    @assert length(p_gRNA_edit) == n_gRNA_total
+    @assert 0 < ϵ_KO <= 1
     
     p_gRNAs = p_gRNA_freq .* p_gRNA_edit * ϵ_KO
     p_genes = [sum(p_gRNAs[i:i+g-1]) for i in 1:g:n_gRNA_total]
@@ -726,14 +828,24 @@ p_gRNA_edit: vector with genome editing efficiencies for all gRNAs
 ***OUTPUT***
 Pₓ₂: probability of full coverage of all pairwise combinations of gene knockouts
 """
-function BioCCP_Pₓ₂(x, 
-                    N,
-                    g, 
-                    r, 
-                    n_gRNA_total, 
-                    p_gRNA_freq, 
-                    p_gRNA_edit, 
-                    ϵ_KO)
+function BioCCP_Pₓ₂(x::Int64, 
+                    N::Int64,
+                    g::Int64, 
+                    r::Int64, 
+                    n_gRNA_total::Int64, 
+                    p_gRNA_freq::Vector{Float64}, 
+                    p_gRNA_edit::Vector{Float64}, 
+                    ϵ_KO::Real)
+    
+    ### constraints on parameters
+    @assert N > 0 && x > 0 && g > 0
+    @assert x * g == n_gRNA_total   
+    @assert r >= 2
+    @assert 1 - 1e-4 < sum(p_gRNA_freq) < 1 + 1e4
+    @assert length(p_gRNA_freq) == n_gRNA_total
+    @assert all(0 .< p_gRNA_edit .<= 1)
+    @assert length(p_gRNA_edit) == n_gRNA_total
+    @assert 0 < ϵ_KO <= 1
     
     # how many pairwise combinations of gRNAs
     ind_combinations_gRNA = collect(combinations(1:n_gRNA_total, 2))
@@ -808,14 +920,24 @@ p_gRNA_edit: vector with genome editing efficiencies for all gRNAs
 ***OUTPUT***
 γₓ₂: expected coverage of all pairwise combinations of gene knockouts
 """
-function BioCCP_γₓ₂(x, 
-                    N,
-                    g, 
-                    r, 
-                    n_gRNA_total, 
-                    p_gRNA_freq, 
-                    p_gRNA_edit, 
-                    ϵ_KO)
+function BioCCP_γₓ₂(x::Int64, 
+                    N::Int64,
+                    g::Int64, 
+                    r::Int64, 
+                    n_gRNA_total::Int64, 
+                    p_gRNA_freq::Vector{Float64}, 
+                    p_gRNA_edit::Vector{Float64}, 
+                    ϵ_KO::Real)
+    
+    ### constraints on parameters
+    @assert N > 0 && x > 0 && g > 0
+    @assert x * g == n_gRNA_total   
+    @assert r >= 2
+    @assert 1 - 1e-4 < sum(p_gRNA_freq) < 1 + 1e4
+    @assert length(p_gRNA_freq) == n_gRNA_total
+    @assert all(0 .< p_gRNA_edit .<= 1)
+    @assert length(p_gRNA_edit) == n_gRNA_total
+    @assert 0 < ϵ_KO <= 1
     
     # how many pairwise combinations of gRNAs
     ind_combinations_gRNA = collect(combinations(1:n_gRNA_total, 2))
@@ -891,14 +1013,24 @@ p_gRNA_edit: vector with genome editing efficiencies for all gRNAs
 ***OUTPUT***
 γₓ₃: expected coverage of all triple combinations of gene knockouts
 """
-function BioCCP_γₓ₃(x, 
-                N,
-                g, 
-                r, 
-                n_gRNA_total, 
-                p_gRNA_freq, 
-                p_gRNA_edit, 
-                ϵ_KO)
+function BioCCP_γₓ₃(x::Int64, 
+                    N::Int64,
+                    g::Int64, 
+                    r::Int64, 
+                    n_gRNA_total::Int64, 
+                    p_gRNA_freq::Vector{Float64}, 
+                    p_gRNA_edit::Vector{Float64}, 
+                    ϵ_KO::Real)
+    
+    ### constraints on parameters
+    @assert N > 0 && x > 0 && g > 0
+    @assert x * g == n_gRNA_total   
+    @assert r >= 3
+    @assert 1 - 1e-4 < sum(p_gRNA_freq) < 1 + 1e4
+    @assert length(p_gRNA_freq) == n_gRNA_total
+    @assert all(0 .< p_gRNA_edit .<= 1)
+    @assert length(p_gRNA_edit) == n_gRNA_total
+    @assert 0 < ϵ_KO <= 1
     
     # how many triple combinations of gRNAs
     ind_combinations_gRNA = collect(combinations(1:n_gRNA_total, 3))
@@ -979,14 +1111,24 @@ p_gRNA_edit: vector with genome editing efficiencies for all gRNAs
 ***OUTPUT***
 Pₓ₃: probability of full coverage of all triple combinations of gene knockouts
 """
-function BioCCP_Pₓ₃(x, 
-                N,
-                g, 
-                r, 
-                n_gRNA_total, 
-                p_gRNA_freq, 
-                p_gRNA_edit, 
-                ϵ_KO)
+function BioCCP_Pₓ₃(x::Int64, 
+                    N::Int64,
+                    g::Int64, 
+                    r::Int64, 
+                    n_gRNA_total::Int64, 
+                    p_gRNA_freq::Vector{Float64}, 
+                    p_gRNA_edit::Vector{Float64}, 
+                    ϵ_KO::Real)
+    
+    ### constraints on parameters
+    @assert N > 0 && x > 0 && g > 0
+    @assert x * g == n_gRNA_total   
+    @assert r >= 3
+    @assert 1 - 1e-4 < sum(p_gRNA_freq) < 1 + 1e4
+    @assert length(p_gRNA_freq) == n_gRNA_total
+    @assert all(0 .< p_gRNA_edit .<= 1)
+    @assert length(p_gRNA_edit) == n_gRNA_total
+    @assert 0 < ϵ_KO <= 1
     
     # how many triple combinations of gRNAs
     ind_combinations_gRNA = collect(combinations(1:n_gRNA_total, 3))
