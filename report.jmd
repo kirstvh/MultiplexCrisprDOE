@@ -34,25 +34,69 @@ df = DataFrame("Argument" => collect(keys(WEAVE_ARGS.args_info)), "Value" => col
 
 ```julia; echo = false
     using Plots
-    gr()
-    plot(WEAVE_ARGS.h1)
+    if haskey(WEAVE_ARGS.grna_dict,"p_gRNA_reads")
+        h1 = histogram(WEAVE_ARGS.grna_dict["p_gRNA_reads"], label="", 
+                        xlabel="Number of reads per gRNA", 
+                        linecolor="white", 
+                        normalize=:probability,
+                        xtickfontsize=10,ytickfontsize=10,
+                        color=:mediumturquoise, size=(600,350), bins = 25,
+                        ylabel="Relative frequency", 
+                        title="gRNA frequency distribution")
+        display(h1)
+    end
 ```
 
 ```julia; echo = false
     using Plots
-    gr()
-    plot(WEAVE_ARGS.h2)
+    if haskey(WEAVE_ARGS.grna_dict,"p_gRNA_edit")
+        h2 = histogram(WEAVE_ARGS.grna_dict["p_gRNA_edit"], 
+                        normalize = :probability,
+                        linecolor = "white",
+                        label="", 
+                        color=:turquoise4,
+                        xtickfontsize=10,ytickfontsize=10, xlim = (0, 1),
+                        xticks=(0:0.1:1),
+                        bins = 150,
+                        xlabel="gRNA editing efficiency", 
+                        ylabel="Relative frequency", 
+                        title="gRNA genome editing effiency distribution")
+        display(h2)
+    end
 ```
 
-**How many plants need to be included in the plant library (on average) to obtain full coverage of all k-combinations of gene knockouts?**
-
-```julia; echo = false; results = "hidden"
-    if haskey(WEAVE_ARGS.output,"E_sim")
+```julia; echo = false
+    using Plots
+    if haskey(WEAVE_ARGS.output,"output file")
+        println("Output written to:")
+        println(WEAVE_ARGS.output["output file"])
+    elseif haskey(WEAVE_ARGS.output,"E_sim")
         E_sim = WEAVE_ARGS.output["E_sim"]
         sd_sim = WEAVE_ARGS.output["sd_sim"]
         k = WEAVE_ARGS.args_info["# of gRNAs / combi gRNA/Cas construct"]
         x = WEAVE_ARGS.args_info["# of target genes in the experiment"]
+        println("**How many plants need to be included in the plant library (on average) to obtain full coverage of all k-combinations of gene knockouts?**")
+        println("On average, ", Int(ceil(E_sim)), " plants need to be sampled at random to observe all ", k, "-combinations of ", x, " gene knockouts. Standard deviation = ", Int(ceil(sd_sim)), " plants")
+    elseif haskey(WEAVE_ARGS.output,"P_sim")
+        p = plot(WEAVE_ARGS.output["pls"], WEAVE_ARGS.output["P_sim"], label="Pₓ₂", 
+                title="Probability of full combinatorial coverage with respect to plant library size",
+                xlabel="N", ylabel="Pₓₖ", 
+                xticks = (0:500:50000, string.(0:500:50000)),
+                size=(900,400), color=:turquoise4, linewidth=2)
+                hline!([0.95], linestyle=:dash, color=:grey, label="Pₓₖ = 0.95", legend=:bottomright)
+        display(p)
+        println("At a given number of plants, what is the probability that all pairwise combinations of gene knockouts are observed?")
+        println("N_95_P: ", WEAVE_ARGS.output["N_95_P"])
+    elseif haskey(WEAVE_ARGS.output,"E_cov")
+        p = plot(WEAVE_ARGS.output["pls"], WEAVE_ARGS.output["E_cov"],
+                label="E[γₓ₂]", title="Expected combinatorial coverage w.r.t. plant library size",
+                xlabel="N", ylabel="E[γₓₖ]", 
+                xticks = (0:500:50000, string.(0:500:50000)),
+                size=(800,400), color=:turquoise4, linewidth=2)
+                hline!([0.95], linestyle=:dash, color=:grey, label="E[γₓₖ] = 0.95", legend=:bottomright)
+        display(p)
+        println("At a given number of plants, what is the expected coverage of pairwise gene knockout combinations?")
+        println("N_95: ", WEAVE_ARGS.output["N_95"])
     end
 ```
 
-`j println("On average, ", Int(ceil(E_sim)), " plants need to be sampled at random to observe all ", k, "-combinations of ", x, " gene knockouts. Standard deviation = ", Int(ceil(sd_sim)), " plants")`
