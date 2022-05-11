@@ -168,6 +168,7 @@ function simulate_Nₓ₁(x::Int64,
     @assert all(0 .< p_gRNA_edit .<= 1)
     @assert length(p_gRNA_edit) == n_gRNA_total
     @assert 0 < ϵ_KO <= 1
+    @assert iter > 1
     
     Nₓ₁_vec = [] #stores number of plants to reach full coverage for each simulated experiment
         for i in 1:iter       
@@ -303,6 +304,7 @@ function simulate_Nₓ₂(x::Int64,
     @assert all(0 .< p_gRNA_edit .<= 1)
     @assert length(p_gRNA_edit) == n_gRNA_total
     @assert 0 < ϵ_KO <= 1
+    @assert iter > 1
         
     
     Nₓ₂_vec = [] #stores number of plants to reach full coverage of all pairwise combinations of gene knockouts for each simulated experiment
