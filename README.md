@@ -3,8 +3,7 @@ This repository accompanies the paper "Covering the Combinatorial Design Space o
 
 It provides simulation- and BioCCP-based approaches for computing the minimal plant library size that guarantees full combinatorial coverage (and other relevant statistics) for  multiplex CRISPR/Cas experiments in plants. 
 
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/kirstvh/MultiplexCrisprDOE/HEAD)
-
+ 
 
 ## Content
 All functions belonging to the simulation- and BioCCP-based approaches are documented in the file `MultiplexCrisprDOE.jl`. A short description of all functions is provided in the Table below.
